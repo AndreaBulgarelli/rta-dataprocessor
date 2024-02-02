@@ -9,18 +9,17 @@ import time
 import sys
 
 class Supervisor:
-    def __init__(self, config_file="config.json", name = "None"):
+    def __init__(self, config_file="config.json", name = "None", pid="0"):
         self.load_configuration(config_file)
         self.processname = name
         self.continueall = True
+        self.pid = pid
 
         self.context = zmq.Context()
         
         # self.socket_data = self.context.socket(zmq.PULL)
         # self.socket_data.bind(self.config_data["data_socket_pull"])
         
-        #self.socket_command = self.context.socket(zmq.PULL)
-        #self.socket_command.bind(self.config_data["command_socket_pull"])
         self.socket_command = self.context.socket(zmq.SUB)
         self.socket_command.connect(self.config_data["command_socket_pubsub"])
         self.socket_command.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics

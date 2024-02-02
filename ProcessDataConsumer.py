@@ -1,10 +1,11 @@
 import sys
 import threading
+import psutil
 from Supervisor import Supervisor
 
-def main(json_file_path, consumername):
+def main(json_file_path, consumername, current_pid):
     #try:
-        supervisor_instance = Supervisor(json_file_path, consumername)
+        supervisor_instance = Supervisor(json_file_path, consumername, current_pid)
         supervisor_instance.start()
     #except Exception as e:
     #    print(f"Error: {e}")
@@ -20,5 +21,6 @@ if __name__ == "__main__":
     consumername = sys.argv[2]
 
     # Call the main function with the provided JSON file path
-    main(json_file_path, consumername)
+    current_pid = psutil.Process().pid
+    main(json_file_path, consumername, current_pid)
     

@@ -15,7 +15,6 @@ class MonitoringThread(threading.Thread):
 
     def run(self):
         while not self._stop_event.is_set():
-            
             monitoring_data =  self.monitoringpoint.get_data()
             monitoring_data_str = json.dumps(monitoring_data)
             #print(monitoring_data_str)
@@ -29,4 +28,5 @@ class MonitoringThread(threading.Thread):
         self.socket_monitoring.send_string(monitoring_data_str)
         print("send monitoring")
         print(monitoring_data)
+
 
