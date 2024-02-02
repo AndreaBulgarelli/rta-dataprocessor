@@ -1,0 +1,12 @@
+{
+	"data_socket_pull": "tcp://*:5555",
+	"command_socket_push": "tcp://localhost:5556",
+	"command_socket_pull": "tcp://*:5556",
+	"command_socket_pubsub": "tcp://127.0.0.1:5556",
+	"monitoring_socket_push": "tcp://localhost:5557",
+	"monitoring_socket_pull": "tcp://*:5557",
+	"result_socket_push": "tcp://localhost:5558",
+	"num_threads": 5
+  }
+  
+  
