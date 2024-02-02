@@ -17,8 +17,12 @@ class Supervisor:
 
         self.context = zmq.Context()
         
-        # self.socket_data = self.context.socket(zmq.PULL)
-        # self.socket_data.bind(self.config_data["data_socket_pull"])
+        #low priority data connection
+        self.socket_lp_data = self.context.socket(zmq.PULL)
+        self.socket_lp_data.bind(self.config_data["data_lp_socket_pull"])
+        #high priority data connection
+        self.socket_hp_data = self.context.socket(zmq.PULL)
+        self.socket_hp_data.bind(self.config_data["data_hp_socket_pull"])
         
         self.socket_command = self.context.socket(zmq.SUB)
         self.socket_command.connect(self.config_data["command_socket_pubsub"])
@@ -53,10 +57,6 @@ class Supervisor:
             print(f"Error: Invalid JSON format in file '{config_file}'.")
             return
 
-        #self.data_socket_pull = config_data.get("data_socket_pull", "tcp://*:5555")
-        #self.command_socket_pull = config_data.get("command_socket_pull", "tcp://*:5556")
-        #self.monitoring_socket_push = config_data.get("monitoring_socket_push", "tcp://localhost:5557")
-        #self.result_socket_push = config_data.get("result_socket_push", "tcp://localhost:5557")
         self.num_threads = self.config_data.get("num_threads", 5)
 
 
@@ -69,9 +69,15 @@ class Supervisor:
         self.command_thread = threading.Thread(target=self.listen_for_commands, daemon=True)
         self.command_thread.start()
 
+        self.lp_data_thread = threading.Thread(target=self.listen_for_lp_data, daemon=True)
+        self.lp_data_thread.start()
+
+        self.hp_data_thread = threading.Thread(target=self.listen_for_hp_data, daemon=True)
+        self.hp_data_thread.start()
+
         #Worker threads
         for i in range(num_threads):
-            thread = WorkerThread(i, self.low_priority_queue, self.high_priority_queue, self.monitoringpoint, self.processname)
+            thread = WorkerThread(i, self.low_priority_queue, self.high_priority_queue, self.monitoringpoint, self)
             self.worker_threads.append(thread)
             thread.start()
 
@@ -80,24 +86,8 @@ class Supervisor:
     def start(self):
         self.start_threads(self.num_threads)
 
-        # while True:
-        #     while self.socket_data.poll(1000):
-        #         print("pull data")
-        #         data = json.loads(self.socket_data.recv_string())
-        #         priority = data.get("priority", "Low")
-        #         if priority == "High":
-        #             self.high_priority_queue.put(data)
-        #         else:
-        #             self.low_priority_queue.put(data)
-        
-        #command socket
-        # while True:
-        #     print("pull commands")
-        #     command = json.loads(self.socket_command.recv_string())
-        #     self.process_command(command)
-
-        # If you have a condition to break the loop, add it here
         self.status = "Waiting"
+
         try:
             while self.continueall:
                 time.sleep(1)  # Puoi aggiungere una breve pausa per evitare il loop infinito senza utilizzo elevato della CPU
@@ -105,6 +95,20 @@ class Supervisor:
             print("Ricevuta interruzione da tastiera. Terminazione in corso.")
             self.stop_threads()
             self.continueall = False
+
+    def listen_for_lp_data(self):
+        while True:
+            data = self.socket_lp_data.recv()
+            self.low_priority_queue.put(data) 
+            self.monitoringpoint.update("queue_lp_size", self.low_priority_queue.qsize())
+            #print("low_priority_queue")
+
+    def listen_for_hp_data(self):
+        while True:
+            data = self.socket_hp_data.recv()
+            self.high_priority_queue.put(data) 
+            self.monitoringpoint.update("queue_hp_size", self.high_priority_queue.qsize())
+            #print("high_priority_queue")
 
     def listen_for_commands(self):
         while True:

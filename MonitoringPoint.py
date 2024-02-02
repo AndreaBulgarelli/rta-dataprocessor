@@ -21,24 +21,34 @@ class MonitoringPoint:
             "memory_usage": 0
         }
         self.data["procinfo"] = procinfo
-        #self.data = {"parameter1": 0, "parameter2": 0}  # Initialize other parameters
-        print("MonitoringPoint initialised")
+        #size of two low and high priority queues
+        self.data["queue_lp_size"] = 0
+        self.data["queue_hp_size"] = 0
+        self.processing_rates = {}
+        #print("MonitoringPoint initialised")
 
     def update(self, key, value):
         with self.lock:
-            if key in self.data:
-                self.data[key] = value
-            else:
-                print(f"Error: Key '{key}' not found in the data dictionary.")
+            self.data[key] = value
+            #if key in self.data:
+            #    self.data[key] = value
+            #else:
+            #    print(f"Error: Key '{key}' not found in the data dictionary.")
 
     def get_data(self):
         #with self.lock:
             self.resource_monitor()
+            self.data["header"]["time"] = time.time()
+            self.set_status(self.process.status)
+
+            for thread in self.process.worker_threads:
+                thread_id = thread.thread_id
+                processing_rate = thread.processing_rate
+                self.processing_rates[thread_id] = processing_rate
+            self.data["processing_rates"] = self.processing_rates
+
              # Create a copy of the data
             data_copy = self.data.copy()
-            data_copy["header"]["time"] = time.time()
-            self.set_status(self.process.status)
-            
             return data_copy
  
     def set_status(self, new_status):
