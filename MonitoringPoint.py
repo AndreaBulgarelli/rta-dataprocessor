@@ -40,8 +40,7 @@ class MonitoringPoint:
             self.set_status(self.process.status)
             
             return data_copy
-            # Return a copy of the housekeeping data within the critical section
-
+ 
     def set_status(self, new_status):
         with self.lock:
             self.data["status"] = new_status
