@@ -7,13 +7,15 @@ import queue
 import threading
 import time
 import sys
+import psutil
 
 class Supervisor:
-    def __init__(self, config_file="config.json", name = "None", pid="0"):
+    def __init__(self, config_file="config.json", name = "None"):
         self.load_configuration(config_file)
         self.processname = name
         self.continueall = True
-        self.pid = pid
+
+        self.pid = psutil.Process().pid
 
         self.context = zmq.Context()
         
@@ -36,7 +38,6 @@ class Supervisor:
 
         self.low_priority_queue = queue.Queue()
         self.high_priority_queue = queue.Queue()
-        self.command_queue = queue.Queue()
 
         self.monitoringpoint = MonitoringPoint(self)
         self.monitoring_thread = None
@@ -59,31 +60,30 @@ class Supervisor:
 
         self.num_threads = self.config_data.get("num_threads", 5)
 
-
-    def start_threads(self, num_threads=5):
-        
+    def start_service_threads(self):
         #Monitoring thread
         self.monitoring_thread = MonitoringThread(self.socket_monitoring, self.monitoringpoint)
         self.monitoring_thread.start()
-
+        #Command receiving thread
         self.command_thread = threading.Thread(target=self.listen_for_commands, daemon=True)
         self.command_thread.start()
 
+        #Data receiving on two queues: high and low priority
         self.lp_data_thread = threading.Thread(target=self.listen_for_lp_data, daemon=True)
         self.lp_data_thread.start()
 
         self.hp_data_thread = threading.Thread(target=self.listen_for_hp_data, daemon=True)
         self.hp_data_thread.start()
 
+    def start_threads(self, num_threads=5):
         #Worker threads
         for i in range(num_threads):
-            thread = WorkerThread(i, self.low_priority_queue, self.high_priority_queue, self.monitoringpoint, self)
+            thread = WorkerThread(i, self)
             self.worker_threads.append(thread)
             thread.start()
 
-
-
     def start(self):
+        self.start_service_threads()
         self.start_threads(self.num_threads)
 
         self.status = "Waiting"
@@ -92,7 +92,7 @@ class Supervisor:
             while self.continueall:
                 time.sleep(1)  # Puoi aggiungere una breve pausa per evitare il loop infinito senza utilizzo elevato della CPU
         except KeyboardInterrupt:
-            print("Ricevuta interruzione da tastiera. Terminazione in corso.")
+            print("Keyboard interrupt received. Terminating.")
             self.stop_threads()
             self.continueall = False
 

@@ -57,9 +57,10 @@ def create_avro_message():
 
     return avro_message, avro_schema
 
-def main(config_file_path, queue):
+def main(config_file_path, queue, delay):
     # Read configuration from the provided file
     config = read_config(config_file_path)
+    delay = float(delay)
 
     # Connect to the ZeroMQ push-type endpoint
     context = zmq.Context()
@@ -73,7 +74,7 @@ def main(config_file_path, queue):
     # Generate and send Avro messages continuously
     while True:
         avro_message, avro_schema = create_avro_message()
-        print(avro_message)
+        #print(avro_message)
 
         # Serialize the Avro message using avro library
         writer = avro.io.DatumWriter(avro_schema)
@@ -86,7 +87,7 @@ def main(config_file_path, queue):
         socket.send(avro_binary_data)
 
         # Simulate a delay (adjust as needed)
-        time.sleep(0.01)
+        time.sleep(delay)
 
 def read_config(file_path="config.json"):
     with open(file_path, "r") as file:
@@ -94,12 +95,13 @@ def read_config(file_path="config.json"):
     return config
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python script.py <config_file> <queue (lp|hp)>")
+    if len(sys.argv) != 4:
+        print("Usage: python script.py <config_file> <queue (lp|hp)> <delay>")
         sys.exit(1)
 
     config_file_path = sys.argv[1]
     queue = sys.argv[2]
+    delay = sys.argv[3]
 
-    main(config_file_path, queue)
+    main(config_file_path, queue, delay)
 
