@@ -51,8 +51,8 @@ def main():
     command_subtype = sys.argv[2].lower()
     pidtarget_processname = sys.argv[3]
 
-    if command_subtype not in ["shutdown", "start", "suspend", "restart", "stop", "getstatus"]:
-        print("Invalid command type. Use 'shutdown', 'start', 'suspend', 'restart', 'stop' or 'getstatus'.")
+    if command_subtype not in ["shutdown", "cleanedshutdown", "start", "suspend", "restart", "stop", "suspenddata", "startdata", "getstatus"]:
+        print("Invalid command type. Use 'shutdown', 'cleanedshutdown', 'start', 'suspend', 'restart', 'stop', 'suspenddata', 'startdata' or 'getstatus'.")
         sys.exit(1)
 
     command = Command(config["command_socket_pubsub"])  # Adjust the address based on your setup

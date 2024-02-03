@@ -41,10 +41,9 @@ class MonitoringPoint:
             self.resource_monitor()
             self.data["header"]["time"] = time.time()
             self.set_status(self.supervisor.status)
-
+            self.data["suspededdatainput"] = self.supervisor.suspenddata
             self.update("queue_lp_size", self.supervisor.low_priority_queue.qsize())
             self.update("queue_hp_size", self.supervisor.high_priority_queue.qsize())
-
 
             for thread in self.supervisor.worker_threads:
                 self.processing_rates[thread.thread_id] = thread.processing_rate

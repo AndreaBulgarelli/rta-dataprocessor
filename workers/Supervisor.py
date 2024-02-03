@@ -47,6 +47,7 @@ class Supervisor:
         self.status = "Initialised"
         #process data based on Supervisor state
         self.processdata = False
+        self.suspenddata = False
         
 
     def load_configuration(self, config_file):
@@ -101,17 +102,19 @@ class Supervisor:
 
     def listen_for_lp_data(self):
         while True:
-            data = self.socket_lp_data.recv()
-            self.low_priority_queue.put(data) 
-            self.monitoringpoint.update("queue_lp_size", self.low_priority_queue.qsize())
-            #print("low_priority_queue")
+            if not self.suspenddata:
+                data = self.socket_lp_data.recv()
+                self.low_priority_queue.put(data) 
+                self.monitoringpoint.update("queue_lp_size", self.low_priority_queue.qsize())
+                #print("low_priority_queue")
 
     def listen_for_hp_data(self):
         while True:
-            data = self.socket_hp_data.recv()
-            self.high_priority_queue.put(data) 
-            self.monitoringpoint.update("queue_hp_size", self.high_priority_queue.qsize())
-            #print("high_priority_queue")
+            if not self.suspenddata:
+                data = self.socket_hp_data.recv()
+                self.high_priority_queue.put(data) 
+                self.monitoringpoint.update("queue_hp_size", self.high_priority_queue.qsize())
+                #print("high_priority_queue")
 
     def listen_for_commands(self):
         while True:
@@ -129,6 +132,15 @@ class Supervisor:
                 self.status = "Shutdown"
                 self.stop_threads()
                 self.continueall = False
+            if subtype_value == "cleanedshutdown":
+                self.status = "EndingProcessing"
+                self.suspenddata = True
+                while self.low_priority_queue.qsize() != 0 and self.low_priority_queue.qsize() != 0:
+                    time.sleep(0.1)
+                print(f"Queue are empty {self.low_priority_queue.qsize()} {self.low_priority_queue.qsize() }")
+                self.status = "Shutdown"
+                self.stop_threads()
+                self.continueall = False
             if subtype_value == "getstatus":
                 self.monitoring_thread.sendto(pidsource)
             if subtype_value == "start": #data processing
@@ -138,6 +150,12 @@ class Supervisor:
             if subtype_value == "suspend": #data processing
                 self.status = "Suspend"
                 self.processdata = False
+                pass
+            if subtype_value == "suspenddata": #data acquisition
+                self.suspenddata = True
+                pass
+            if subtype_value == "startdata": #data acquisition
+                self.suspenddata = False
                 pass
             if subtype_value == "restart": #data processing
                 self.status = "Processing"
