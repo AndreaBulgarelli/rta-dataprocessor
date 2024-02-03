@@ -3,15 +3,15 @@ import time
 import psutil
 
 class MonitoringPoint:
-    def __init__(self, process):
-        self.process = process
-        self.processOS = psutil.Process(self.process.pid)
+    def __init__(self, supervisor):
+        self.supervisor = supervisor
+        self.processOS = psutil.Process(self.supervisor.pid)
         self.lock = threading.Lock()
         self.data = {}
         header = {
                 "type": 1,
                 "time": 0,  # Replace with actual timestamp if needed
-                "pidsource": self.process.processname,
+                "pidsource": self.supervisor.processname,
                 "pidtarget": "*"
         }
         self.data["header"] = header
@@ -25,6 +25,7 @@ class MonitoringPoint:
         self.data["queue_lp_size"] = 0
         self.data["queue_hp_size"] = 0
         self.processing_rates = {}
+        self.processing_tot_events = {}
         #print("MonitoringPoint initialised")
 
     def update(self, key, value):
@@ -39,17 +40,20 @@ class MonitoringPoint:
         #with self.lock:
             self.resource_monitor()
             self.data["header"]["time"] = time.time()
-            self.set_status(self.process.status)
+            self.set_status(self.supervisor.status)
 
-            for thread in self.process.worker_threads:
-                thread_id = thread.thread_id
-                processing_rate = thread.processing_rate
-                self.processing_rates[thread_id] = processing_rate
+            self.update("queue_lp_size", self.supervisor.low_priority_queue.qsize())
+            self.update("queue_hp_size", self.supervisor.high_priority_queue.qsize())
+
+
+            for thread in self.supervisor.worker_threads:
+                self.processing_rates[thread.thread_id] = thread.processing_rate
+                self.processing_tot_events[thread.thread_id] = thread.total_processed_data_count
             self.data["processing_rates"] = self.processing_rates
-
+            self.data["processing_tot_events"] = self.processing_tot_events
              # Create a copy of the data
-            data_copy = self.data.copy()
-            return data_copy
+            #data_copy = self.data.copy()
+            return self.data
  
     def set_status(self, new_status):
         with self.lock:

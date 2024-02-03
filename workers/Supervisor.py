@@ -15,6 +15,7 @@ class Supervisor:
         self.processname = name
         self.continueall = True
 
+
         self.pid = psutil.Process().pid
 
         self.context = zmq.Context()
@@ -44,6 +45,8 @@ class Supervisor:
 
         self.worker_threads = []
         self.status = "Initialised"
+        #process data based on Supervisor state
+        self.processdata = False
         
 
     def load_configuration(self, config_file):
@@ -130,15 +133,19 @@ class Supervisor:
                 self.monitoring_thread.sendto(pidsource)
             if subtype_value == "start": #data processing
                 self.status = "Processing"
+                self.processdata = True
                 pass
             if subtype_value == "suspend": #data processing
                 self.status = "Suspend"
+                self.processdata = False
                 pass
             if subtype_value == "restart": #data processing
                 self.status = "Processing"
+                self.processdata = True
                 pass       
             if subtype_value == "stop": #data processing
                 self.status = "Waiting"
+                self.processdata = False
                 pass    
         monitoringpoint_data = self.monitoringpoint.get_data()
         print(f"MonitoringPoint data: {monitoringpoint_data}")
