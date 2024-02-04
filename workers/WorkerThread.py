@@ -5,11 +5,12 @@ import time
 from threading import Timer
 
 class WorkerThread(threading.Thread):
-    def __init__(self, thread_id, manager):
+    def __init__(self, thread_id, manager, name="None"):
         super().__init__()
         self.manager = manager
         self.thread_id = thread_id
-        self.name = "WorkerThread"+str(self.thread_id)
+        self.name = name
+        self.globalname = f"WorkerThread-{self.manager.supervisor.name}-{self.manager.name}-{self.name}-{self.thread_id}"
 
         self.low_priority_queue = self.manager.low_priority_queue
         self.high_priority_queue = self.manager.high_priority_queue
@@ -24,7 +25,7 @@ class WorkerThread(threading.Thread):
 
         self._stop_event = threading.Event()  # Usato per segnalare l'arresto
 
-        print(f"Worker {self.name} started")
+        print(f"{self.globalname} started")
 
     def stop(self):
         self._stop_event.set()  # Imposta l'evento di arresto
@@ -50,7 +51,7 @@ class WorkerThread(threading.Thread):
                     except queue.Empty:
                         pass  # Continue if both queues are empty
         
-        print(f"Worker stop {self.name}")
+        print(f"Worker stop {self.globalname}")
 
     def start_timer(self, interval):
         self.timer = Timer(interval, self.calcdatarate)
@@ -61,7 +62,7 @@ class WorkerThread(threading.Thread):
         self.next_time = time.time()
         self.processing_rate = self.processed_data_count / elapsed_time
         self.total_processed_data_count += self.processed_data_count
-        print(f"Thread-{self.thread_id} rate Hz {self.processing_rate} total events {self.total_processed_data_count}")
+        print(f"{self.globalname} rate Hz {self.processing_rate} total events {self.total_processed_data_count}")
         self.processed_data_count = 0
         
         self.start_timer(10)

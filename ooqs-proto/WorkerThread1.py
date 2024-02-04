@@ -4,8 +4,8 @@ from avro.io import DatumReader
 import io
 
 class WorkerThread1(WorkerThread):
-	def __init__(self, thread_id, supervisor):
-		super().__init__(thread_id, supervisor)
+	def __init__(self, thread_id, workermanager, name="S22Rate"):
+		super().__init__(thread_id, workermanager, name)
 
 		# Load Avro schema from the provided schema string
 		avro_schema_str = '''
@@ -32,8 +32,6 @@ class WorkerThread1(WorkerThread):
 		# Create Avro reader
 		self.reader = avro.io.DatumReader(avro_schema)
 
-
-
 	def process_data(self, data, priority):
 		super().process_data(data, priority)
 		# Custom processing logic for Worker1
@@ -44,4 +42,5 @@ class WorkerThread1(WorkerThread):
 		avro_message = self.reader.read(decoder)
 
 		# Process the decoded Avro message as needed
-		#print(avro_message)
+		print(self.globalname)
+		print(avro_message)

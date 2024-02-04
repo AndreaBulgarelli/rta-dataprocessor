@@ -14,6 +14,7 @@ class Supervisor:
     def __init__(self, config_file="config.json", name = "None"):
         self.load_configuration(config_file)
         self.name = name
+        self.globalname = "Supervisor-"+name
         self.continueall = True
 
 
@@ -42,7 +43,7 @@ class Supervisor:
         #process data based on Supervisor state
         self.processdata = False
         self.suspenddata = False
-        
+        print(f"{self.globalname} started")
 
     def load_configuration(self, config_file):
         try:
@@ -141,7 +142,7 @@ class Supervisor:
                     manager.suspenddata = True
                     while manager.low_priority_queue.qsize() != 0 and manager.low_priority_queue.qsize() != 0:
                         time.sleep(0.1)
-                    print(f"Queues of manager {manager.name} are empty {manager.low_priority_queue.qsize()} {manager.low_priority_queue.qsize() }")
+                    print(f"Queues of manager {manager.globalname} are empty {manager.low_priority_queue.qsize()} {manager.low_priority_queue.qsize() }")
                     manager.status = "Shutdown"
                     
                 self.status = "Shutdown"

@@ -13,15 +13,17 @@ import threading
 class WorkerManager(threading.Thread):
     def __init__(self, supervisor, name = "None"):
         super().__init__()
-        self.config_data = supervisor.config_data
-        self.name = supervisor.name + "-" + name
+        self.supervisor = supervisor
+        self.config_data = self.supervisor.config_data
+        self.name = name
+        self.globalname = "WorkerManager-"+self.supervisor.name + "-" + name
         self.continueall = True
 
         self.pid = psutil.Process().pid
 
-        self.context = supervisor.context
+        self.context = self.supervisor.context
                 
-        self.socket_monitoring = supervisor.socket_monitoring
+        self.socket_monitoring = self.supervisor.socket_monitoring
 
         self.socket_result = self.context.socket(zmq.PUSH)
         self.socket_result.connect(self.config_data["result_socket_push"])
@@ -40,7 +42,7 @@ class WorkerManager(threading.Thread):
 
         self._stop_event = threading.Event()  # Usato per segnalare l'arresto
 
-        print(f"Worker Manager {self.name} started")
+        print(f"{self.globalname} started")
 
     def start_service_threads(self):
         #Monitoring thread
@@ -65,7 +67,7 @@ class WorkerManager(threading.Thread):
             while not self._stop_event.is_set():
                 time.sleep(1)  # Puoi aggiungere una breve pausa per evitare il loop infinito senza utilizzo elevato della CPU
 
-            print(f"Manager stop {self.name}")
+            print(f"Manager stop {self.globalname}")
         except KeyboardInterrupt:
             print("Keyboard interrupt received. Terminating.")
             self.stop_threads()

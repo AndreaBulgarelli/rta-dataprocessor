@@ -1,15 +1,12 @@
 from Supervisor import Supervisor
-from WorkerThread1 import WorkerThread1
+from WorkerManager1 import WorkerManager1
 
 class Supervisor1(Supervisor):
-    def __init__(self, config_file="config.json", name="None"):
-        super().__init__(config_file, name)
+	def __init__(self, config_file="config.json", name="OOQS1"):
+		super().__init__(config_file, name)
 
-    def start_threads(self, num_threads=5):
-        #Worker threads
-        for i in range(num_threads):
-            thread = WorkerThread1(i, self)
-            self.worker_threads.append(thread)
-            thread.start()
-            print("Started ooqs threads")
+	def start_manager_threads(self):
+		manager = WorkerManager1(self, "S22")
+		manager.start()
+		self.manager_threads.append(manager)
 
