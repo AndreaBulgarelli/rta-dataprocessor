@@ -1,6 +1,7 @@
 from MonitoringPoint import MonitoringPoint
 from WorkerThread import WorkerThread
 from MonitoringThread import MonitoringThread
+from WorkerManager import WorkerManager
 import json
 import zmq
 import queue
@@ -12,7 +13,7 @@ import psutil
 class Supervisor:
     def __init__(self, config_file="config.json", name = "None"):
         self.load_configuration(config_file)
-        self.processname = name
+        self.name = name
         self.continueall = True
 
 
@@ -33,17 +34,10 @@ class Supervisor:
         
         self.socket_monitoring = self.context.socket(zmq.PUSH)
         self.socket_monitoring.connect(self.config_data["monitoring_socket_push"])
+        # self.monitoringpoint = MonitoringPoint(self)
+        # self.monitoring_thread = None
 
-        self.socket_result = self.context.socket(zmq.PUSH)
-        self.socket_result.connect(self.config_data["result_socket_push"])
-
-        self.low_priority_queue = queue.Queue()
-        self.high_priority_queue = queue.Queue()
-
-        self.monitoringpoint = MonitoringPoint(self)
-        self.monitoring_thread = None
-
-        self.worker_threads = []
+        self.manager_threads = []
         self.status = "Initialised"
         #process data based on Supervisor state
         self.processdata = False
@@ -66,11 +60,11 @@ class Supervisor:
 
     def start_service_threads(self):
         #Monitoring thread
-        self.monitoring_thread = MonitoringThread(self.socket_monitoring, self.monitoringpoint)
-        self.monitoring_thread.start()
+        # self.monitoring_thread = MonitoringThread(self.socket_monitoring, self.monitoringpoint)
+        # self.monitoring_thread.start()
         #Command receiving thread
-        self.command_thread = threading.Thread(target=self.listen_for_commands, daemon=True)
-        self.command_thread.start()
+        #self.command_thread = threading.Thread(target=self.listen_for_commands, daemon=True)
+        #self.command_thread.start()
 
         #Data receiving on two queues: high and low priority
         self.lp_data_thread = threading.Thread(target=self.listen_for_lp_data, daemon=True)
@@ -79,22 +73,30 @@ class Supervisor:
         self.hp_data_thread = threading.Thread(target=self.listen_for_hp_data, daemon=True)
         self.hp_data_thread.start()
 
-    def start_threads(self, num_threads=5):
+    #to be reimplemented ####
+    def start_manager_threads(self):
+        manager = WorkerManager(self, "Generic")
+        manager.start()
+        self.manager_threads.append(manager)
+
+    def start_worker_threads(self, num_threads=5):
         #Worker threads
-        for i in range(num_threads):
-            thread = WorkerThread(i, self)
-            self.worker_threads.append(thread)
-            thread.start()
+        for manager in self.manager_threads: 
+            manager.start_worker_threads(num_threads)
+
 
     def start(self):
         self.start_service_threads()
-        self.start_threads(self.num_threads)
+        self.start_manager_threads()
+        self.start_worker_threads(self.num_threads)
 
         self.status = "Waiting"
 
         try:
             while self.continueall:
+                self.listen_for_commands()
                 time.sleep(1)  # Puoi aggiungere una breve pausa per evitare il loop infinito senza utilizzo elevato della CPU
+                print("wait")
         except KeyboardInterrupt:
             print("Keyboard interrupt received. Terminating.")
             self.stop_threads()
@@ -104,21 +106,20 @@ class Supervisor:
         while True:
             if not self.suspenddata:
                 data = self.socket_lp_data.recv()
-                self.low_priority_queue.put(data) 
-                self.monitoringpoint.update("queue_lp_size", self.low_priority_queue.qsize())
-                #print("low_priority_queue")
+                for manager in self.manager_threads: 
+                    manager.low_priority_queue.put(data) 
 
     def listen_for_hp_data(self):
         while True:
             if not self.suspenddata:
                 data = self.socket_hp_data.recv()
-                self.high_priority_queue.put(data) 
-                self.monitoringpoint.update("queue_hp_size", self.high_priority_queue.qsize())
-                #print("high_priority_queue")
+                for manager in self.manager_threads: 
+                    self.high_priority_queue.put(data) 
+
 
     def listen_for_commands(self):
         while True:
-            print("Pulling commands")
+            print("Waiting for commands")
             command = json.loads(self.socket_command.recv_string())
             self.process_command(command)
 
@@ -127,7 +128,7 @@ class Supervisor:
         subtype_value = command['header']['subtype']
         pidtarget = command['header']['pidtarget']
         pidsource = command['header']['pidsource']
-        if pidtarget == self.processname or pidtarget == "all".lower() or pidtarget == "*":
+        if pidtarget == self.name or pidtarget == "all".lower() or pidtarget == "*":
             if subtype_value == "shutdown":
                 self.status = "Shutdown"
                 self.stop_threads()
@@ -135,50 +136,69 @@ class Supervisor:
             if subtype_value == "cleanedshutdown":
                 self.status = "EndingProcessing"
                 self.suspenddata = True
-                while self.low_priority_queue.qsize() != 0 and self.low_priority_queue.qsize() != 0:
-                    time.sleep(0.1)
-                print(f"Queue are empty {self.low_priority_queue.qsize()} {self.low_priority_queue.qsize() }")
+                for manager in self.manager_threads:
+                    manager.status = "EndingProcessing"
+                    manager.suspenddata = True
+                    while manager.low_priority_queue.qsize() != 0 and manager.low_priority_queue.qsize() != 0:
+                        time.sleep(0.1)
+                    print(f"Queues of manager {manager.name} are empty {manager.low_priority_queue.qsize()} {manager.low_priority_queue.qsize() }")
+                    manager.status = "Shutdown"
+                    
                 self.status = "Shutdown"
                 self.stop_threads()
                 self.continueall = False
             if subtype_value == "getstatus":
-                self.monitoring_thread.sendto(pidsource)
+                for manager in self.manager_threads:
+                    manager.monitoring_thread.sendto(pidsource)
             if subtype_value == "start": #data processing
                 self.status = "Processing"
-                self.processdata = True
+                for manager in self.manager_threads:
+                    manager.status = "Processing"
+                    manager.processdata = True
                 pass
             if subtype_value == "suspend": #data processing
                 self.status = "Suspend"
-                self.processdata = False
+                for manager in self.manager_threads:
+                    manager.status = "Suspend"
+                    manager.processdata = False
                 pass
             if subtype_value == "suspenddata": #data acquisition
-                self.suspenddata = True
+                for manager in self.manager_threads:
+                    manager.suspenddata = True
                 pass
             if subtype_value == "startdata": #data acquisition
-                self.suspenddata = False
+                for manager in self.manager_threads:
+                    manager.suspenddata = False
                 pass
             if subtype_value == "restart": #data processing
                 self.status = "Processing"
-                self.processdata = True
+                for manager in self.manager_threads:
+                    manager.status = "Processing"
+                    manager.processdata = True
                 pass       
             if subtype_value == "stop": #data processing
                 self.status = "Waiting"
-                self.processdata = False
+                for manager in self.manager_threads:
+                    manager.status = "Waiting"
+                    manager.processdata = False
                 pass    
-        monitoringpoint_data = self.monitoringpoint.get_data()
-        print(f"MonitoringPoint data: {monitoringpoint_data}")
+        # monitoringpoint_data = self.monitoringpoint.get_data()
+        # print(f"MonitoringPoint data: {monitoringpoint_data}")
 
     def stop_threads(self):
-        print("Stopping threads...")
+        print("Stopping all threads...")
         # Stop monitoring thread
-        self.monitoring_thread.stop()
-        self.monitoring_thread.join()
+        # self.monitoring_thread.stop()
+        # self.monitoring_thread.join()
 
         # Stop worker threads
-        for thread in self.worker_threads:
-            thread.stop()
-            thread.join()
+        for manager in self.manager_threads: 
+            for thread in manager.worker_threads:
+                thread.stop()
+                thread.join()
+            manager.stop()
+            manager.join()
 
-        print("All threads terminated.")
-
+        print("All Supervisor threads terminated.")
+        sys.exit(1)
 

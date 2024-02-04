@@ -3,15 +3,15 @@ import time
 import psutil
 
 class MonitoringPoint:
-    def __init__(self, supervisor):
-        self.supervisor = supervisor
-        self.processOS = psutil.Process(self.supervisor.pid)
+    def __init__(self, manager):
+        self.manager = manager
+        self.processOS = psutil.Process(self.manager.pid)
         self.lock = threading.Lock()
         self.data = {}
         header = {
                 "type": 1,
                 "time": 0,  # Replace with actual timestamp if needed
-                "pidsource": self.supervisor.processname,
+                "pidsource": self.manager.name,
                 "pidtarget": "*"
         }
         self.data["header"] = header
@@ -26,7 +26,7 @@ class MonitoringPoint:
         self.data["queue_hp_size"] = 0
         self.processing_rates = {}
         self.processing_tot_events = {}
-        #print("MonitoringPoint initialised")
+        print("MonitoringPoint initialised")
 
     def update(self, key, value):
         with self.lock:
@@ -40,12 +40,12 @@ class MonitoringPoint:
         #with self.lock:
             self.resource_monitor()
             self.data["header"]["time"] = time.time()
-            self.set_status(self.supervisor.status)
-            self.data["suspededdatainput"] = self.supervisor.suspenddata
-            self.update("queue_lp_size", self.supervisor.low_priority_queue.qsize())
-            self.update("queue_hp_size", self.supervisor.high_priority_queue.qsize())
+            self.set_status(self.manager.status)
+            self.data["suspededdatainput"] = self.manager.suspenddata
+            self.update("queue_lp_size", self.manager.low_priority_queue.qsize())
+            self.update("queue_hp_size", self.manager.high_priority_queue.qsize())
 
-            for thread in self.supervisor.worker_threads:
+            for thread in self.manager.worker_threads:
                 self.processing_rates[thread.thread_id] = thread.processing_rate
                 self.processing_tot_events[thread.thread_id] = thread.total_processed_data_count
             self.data["processing_rates"] = self.processing_rates
