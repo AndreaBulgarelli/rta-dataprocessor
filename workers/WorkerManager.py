@@ -22,6 +22,8 @@ class WorkerManager(threading.Thread):
         self.globalname = "WorkerManager-"+self.supervisor.name + "-" + name
         self.continueall = True
         self.manager_type = manager_type
+        #number max of workers
+        self.max_workes = 100
 
         self.pid = psutil.Process().pid
 
@@ -44,9 +46,12 @@ class WorkerManager(threading.Thread):
 
         self.monitoringpoint = None
         self.monitoring_thread = None
+        self.processing_rates_shared = multiprocessing.Array('f', self.max_workes)
+        self.total_processed_data_count_shared = multiprocessing.Array('f', self.max_workes)
 
         self.worker_threads = []
         self.worker_processes = []
+        self.num_workers = 0
 
         self.status = "Initialised"
 
@@ -79,14 +84,20 @@ class WorkerManager(threading.Thread):
     #to be reimplemented
     def start_worker_threads(self, num_threads=5):
         #Worker threads
+        if num_threads > self.max_workes:
+            print(f"WARNING! It is not possible to create more than {self.max_workes} threads")
+        self.num_workers = num_threads
         for i in range(num_threads):
-            thread = WorkerThread(i, self, )
+            thread = WorkerThread(i, self)
             self.worker_threads.append(thread)
             thread.start()
 
     # to be reimplemented
     def start_worker_processes(self, num_processes=5):
         # Worker processes
+        if num_processes > self.max_workes:
+            print(f"WARNING! It is not possible to create more than {self.max_workes} threads")
+        self.num_workers = num_processes
         for i in range(num_processes):
             process = WorkerProcess(i, self, self.processdata_shared)
             self.worker_processes.append(process)

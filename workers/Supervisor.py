@@ -77,7 +77,7 @@ class Supervisor:
         self.hp_data_thread.start()
 
     #to be reimplemented ####
-    def start_manager_workers(self):
+    def start_managers(self):
         #manager_type="Process" or manager_type="Thread"
         manager = WorkerManager(self, "Thread", "Generic")
         manager.start()
@@ -92,7 +92,7 @@ class Supervisor:
 
     def start(self):
         self.start_service_threads()
-        self.start_manager_workers()
+        self.start_managers()
         self.start_workers(self.num_workers)
 
         self.status = "Waiting"

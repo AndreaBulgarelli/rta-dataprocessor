@@ -44,13 +44,16 @@ class MonitoringPoint:
             self.data["suspededdatainput"] = self.manager.suspenddata
             self.update("queue_lp_size", self.manager.low_priority_queue.qsize())
             self.update("queue_hp_size", self.manager.high_priority_queue.qsize())
-
-            for worker in self.manager.worker_processes:
-                self.processing_rates[worker.worker_id] = worker.processing_rate
-                self.processing_tot_events[worker.worker_id] = worker.total_processed_data_count
-            for worker in self.manager.worker_threads:
-                self.processing_rates[worker.worker_id] = worker.processing_rate
-                self.processing_tot_events[worker.worker_id] = worker.total_processed_data_count
+            
+            if self.manager.manager_type == "Process":
+                for worker in self.manager.worker_processes:
+                    #print(f"Monitor {worker.globalname} {worker.processing_rate}")
+                    self.processing_rates[worker.worker_id] = self.manager.processing_rates_shared[worker.worker_id]
+                    self.processing_tot_events[worker.worker_id] = self.manager.total_processed_data_count_shared[worker.worker_id]
+            if self.manager.manager_type == "Thread":
+                for worker in self.manager.worker_threads:
+                    self.processing_rates[worker.worker_id] = worker.processing_rate
+                    self.processing_tot_events[worker.worker_id] = worker.total_processed_data_count
             self.data["processing_rates"] = self.processing_rates
             self.data["processing_tot_events"] = self.processing_tot_events
              # Create a copy of the data

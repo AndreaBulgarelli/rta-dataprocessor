@@ -66,10 +66,12 @@ class WorkerProcess(Process):
         elapsed_time = time.time() - self.next_time
         self.next_time = time.time()
         self.processing_rate = self.processed_data_count / elapsed_time
+        self.manager.processing_rates_shared[self.worker_id] = self.processing_rate
         self.total_processed_data_count += self.processed_data_count
-        print(f"{self.globalname} rate Hz {self.processing_rate:.1f} total events {self.total_processed_data_count}. State {self.processdata_shared.value}")
+        self.manager.total_processed_data_count_shared[self.worker_id] = self.total_processed_data_count
+        print(f"{self.globalname} rate Hz {self.processing_rate:.1f} total events {self.total_processed_data_count}")
         self.processed_data_count = 0
-        
+
         if not self._stop_event.is_set():
             self.start_timer(10)
 
