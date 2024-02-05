@@ -23,20 +23,17 @@ class WorkerThread(threading.Thread):
         self.total_processed_data_count = 0
         self.processing_rate = 0
 
-        self._stop_event = threading.Event()  # Usato per segnalare l'arresto
+        self._stop_event = threading.Event()  # Set the stop event
 
         self.processdata = 0
 
         print(f"{self.globalname} started")
 
     def stop(self):
-        self._stop_event.set()  # Imposta l'evento di arresto
-        #self.timer.cancel()
+        self._stop_event.set()  # Set the stop event
 
     def set_processdata(self, processdata1):
-        print(f"Worker set_processdata {processdata1}")
         self.processdata=processdata1
-        print(self.processdata)
 
     def run(self):
         self.start_timer(10)
@@ -45,7 +42,6 @@ class WorkerThread(threading.Thread):
             time.sleep(0.00001) #must be 0
 
             if self.manager.processdata == 1:
-
                 try:
                     # Check and process high-priority queue first
                     high_priority_data = self.high_priority_queue.get_nowait()
@@ -77,7 +73,6 @@ class WorkerThread(threading.Thread):
             self.start_timer(10)
 
     def process_data(self, data, priority):
-
         #print(f"Thread-{self.worker_id} Priority-{priority} processing data. Queues size: {self.low_priority_queue.qsize()} {self.high_priority_queue.qsize()}")
         # Increment the processed data count and calculate the rate
         self.processed_data_count += 1

@@ -40,9 +40,10 @@ class Supervisor:
 
         self.manager_workers = []
         self.status = "Initialised"
+
         #process data based on Supervisor state
         self.processdata = 0
-        self.suspenddata = 0
+        self.suspenddata = False
 
         print(f"{self.globalname} started")
 
@@ -77,12 +78,12 @@ class Supervisor:
 
     #to be reimplemented ####
     def start_manager_workers(self):
-        manager = WorkerManager(self, "Process", "Generic")
+        #manager_type="Process" or manager_type="Thread"
+        manager = WorkerManager(self, "Thread", "Generic")
         manager.start()
         self.manager_workers.append(manager)
 
     def start_workers(self, num_workers=5):
-        #Worker threads
         for manager in self.manager_workers: 
             if manager.manager_type == "Thread":
                 manager.start_worker_threads(num_workers)
@@ -99,11 +100,10 @@ class Supervisor:
         try:
             while self.continueall:
                 self.listen_for_commands()
-                time.sleep(1)  # Puoi aggiungere una breve pausa per evitare il loop infinito senza utilizzo elevato della CPU
-                print("wait")
+                time.sleep(1)  # To avoid 100 per cent CPU
         except KeyboardInterrupt:
             print("Keyboard interrupt received. Terminating.")
-            self.stop_threads()
+            self.stop_all()
             self.continueall = False
 
     def listen_for_lp_data(self):
@@ -123,7 +123,7 @@ class Supervisor:
 
     def listen_for_commands(self):
         while True:
-            print("Waiting for commands")
+            print("Waiting for commands...")
             command = json.loads(self.socket_command.recv_string())
             self.process_command(command)
 
@@ -135,7 +135,7 @@ class Supervisor:
         if pidtarget == self.name or pidtarget == "all".lower() or pidtarget == "*":
             if subtype_value == "shutdown":
                 self.status = "Shutdown"
-                self.stop_threads()
+                self.stop_all(True)
                 self.continueall = False
             if subtype_value == "cleanedshutdown":
                 if self.status == "Processing":
@@ -152,7 +152,7 @@ class Supervisor:
                 else:
                     print("WARNING! Not in Processing state for a cleaned shutdown. Force the shutdown.") 
                 self.status = "Shutdown"
-                self.stop_threads()
+                self.stop_all(False)
                 self.continueall = False
             if subtype_value == "getstatus":
                 for manager in self.manager_workers:
@@ -192,8 +192,8 @@ class Supervisor:
         # monitoringpoint_data = self.monitoringpoint.get_data()
         # print(f"MonitoringPoint data: {monitoringpoint_data}")
 
-    def stop_threads(self):
-        print("Stopping all workers...")
+    def stop_all(self, fast=False):
+        print("Stopping all workers and managers...")
         # Stop monitoring thread
         # self.monitoring_thread.stop()
         # self.monitoring_thread.join()
@@ -208,17 +208,17 @@ class Supervisor:
                 thread.join()
 
 
-       # Stop worker threads
+       # Stop worker processes
         for manager in self.manager_workers: 
             for process in manager.worker_processes:
                 process.stop()
                 process.join()
 
-
+        # Stop managers
         for manager in self.manager_workers: 
-            manager.stop()
+            manager.stop(fast)
             manager.join()
 
-        print("All Supervisor threads terminated.")
+        print("All all workers and managers terminated.")
         sys.exit(1)
 

@@ -26,35 +26,23 @@ class WorkerProcess(Process):
         self.total_processed_data_count = 0
         self.processing_rate = 0
 
-        self._stop_event = Event()  # Usato per segnalare l'arresto
+        self._stop_event = Event()  # Set the stop event
 
-        self.processdata = 0
         self.processdata_shared = processdata_shared
-
-        self.testvar = "hello"
 
         print(f"{self.globalname} started {self.pidprocess}")
 
     def stop(self):
-        self._stop_event.set()  # Imposta l'evento di arresto
-        #self.timer.cancel()
-
-    def set_processdata(self, processdata1):
-        print(f"Worker {self.globalname} set_processdata {processdata1}")
-        self.processdata=processdata1
-        print(f"Worker {self.globalname} set_processdata {self.processdata}")
+        self._stop_event.set()  # Set the stop event
 
     def run(self):
-        print(f"{self.globalname} run entering...")
         self.start_timer(10)
 
         while not self._stop_event.is_set():
-            time.sleep(0.01) #must be 0
-            #print(f"wait. {self.globalname} / {self.processdata} Queues size: {self.manager.low_priority_queue.qsize()} {self.manager.high_priority_queue.qsize()}")  
-
+            time.sleep(0.0001) #must be 0
+ 
             if self.processdata_shared.value == 1:
-                #print(f"wait2. {self.globalname} / {self.processdata} Queues size: {self.manager.low_priority_queue.qsize()} {self.manager.high_priority_queue.qsize()}")
-
+ 
                 try:
                     # Check and process high-priority queue first
                     high_priority_data = self.high_priority_queue.get_nowait()
@@ -81,11 +69,11 @@ class WorkerProcess(Process):
         self.total_processed_data_count += self.processed_data_count
         print(f"{self.globalname} rate Hz {self.processing_rate:.1f} total events {self.total_processed_data_count}. State {self.processdata_shared.value}")
         self.processed_data_count = 0
+        
         if not self._stop_event.is_set():
             self.start_timer(10)
 
     def process_data(self, data, priority):
-
         #print(f"Thread-{self.worker_id} Priority-{priority} processing data. Queues size: {self.low_priority_queue.qsize()} {self.high_priority_queue.qsize()}")
         # Increment the processed data count and calculate the rate
         self.processed_data_count += 1
