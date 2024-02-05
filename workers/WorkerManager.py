@@ -1,5 +1,6 @@
 from MonitoringPoint import MonitoringPoint
 from WorkerThread import WorkerThread
+from WorkerProcess import WorkerProcess
 from MonitoringThread import MonitoringThread
 import json
 import zmq
@@ -9,15 +10,18 @@ import time
 import sys
 import psutil
 import threading
+import multiprocessing
 
 class WorkerManager(threading.Thread):
-    def __init__(self, supervisor, name = "None"):
+    #manager_type="Process" or manager_type="Thread"
+    def __init__(self, supervisor, manager_type="Process", name = "None"):
         super().__init__()
         self.supervisor = supervisor
         self.config_data = self.supervisor.config_data
         self.name = name
         self.globalname = "WorkerManager-"+self.supervisor.name + "-" + name
         self.continueall = True
+        self.manager_type = manager_type
 
         self.pid = psutil.Process().pid
 
@@ -28,21 +32,39 @@ class WorkerManager(threading.Thread):
         self.socket_result = self.context.socket(zmq.PUSH)
         self.socket_result.connect(self.config_data["result_socket_push"])
 
-        self.low_priority_queue = queue.Queue()
-        self.high_priority_queue = queue.Queue()
+        #thread
+        if self.manager_type == "Thread":
+            self.low_priority_queue = queue.Queue()
+            self.high_priority_queue = queue.Queue()
+
+        #processes
+        if self.manager_type == "Process":
+            self.low_priority_queue = multiprocessing.Queue()
+            self.high_priority_queue = multiprocessing.Queue()
 
         self.monitoringpoint = None
         self.monitoring_thread = None
 
         self.worker_threads = []
+        self.worker_processes = []
+
         self.status = "Initialised"
         #process data based on Supervisor state
-        self.processdata = False
-        self.suspenddata = False
+        self.processdata = 0
+        self.processdata_shared = multiprocessing.Value('i', 0)
+        self.suspenddata = 0
 
         self._stop_event = threading.Event()  # Usato per segnalare l'arresto
 
         print(f"{self.globalname} started")
+
+    def set_processdata(self, processdata):
+        self.processdata = processdata
+        self.processdata_shared.value = processdata
+        for worker in self.worker_processes:
+            worker.set_processdata(self.processdata)
+        for worker in self.worker_threads:
+            worker.set_processdata(self.processdata)
 
     def start_service_threads(self):
         #Monitoring thread
@@ -54,9 +76,18 @@ class WorkerManager(threading.Thread):
     def start_worker_threads(self, num_threads=5):
         #Worker threads
         for i in range(num_threads):
-            thread = WorkerThread(i, self)
+            thread = WorkerThread(i, self, )
             self.worker_threads.append(thread)
             thread.start()
+
+    # to be reimplemented
+    def start_worker_processes(self, num_processes=5):
+        # Worker processes
+        for i in range(num_processes):
+            process = WorkerProcess(i, self, self.processdata_shared)
+            self.worker_processes.append(process)
+            process.start()
+
 
     def run(self):
         self.start_service_threads()
@@ -66,18 +97,34 @@ class WorkerManager(threading.Thread):
         try:
             while not self._stop_event.is_set():
                 time.sleep(1)  # Puoi aggiungere una breve pausa per evitare il loop infinito senza utilizzo elevato della CPU
+                #print(f"Manager {self.processdata}")
 
             print(f"Manager stop {self.globalname}")
         except KeyboardInterrupt:
             print("Keyboard interrupt received. Terminating.")
-            self.stop_threads()
+            #self.stop_threads()
+            self.stop_processes()
             self.continueall = False
 
     def stop(self):
-        self.stop_threads()
+        #self.stop_threads()
+        self.stop_processes()
+        if self.manager_type == "Process":
+            print("Close queues...")
+            while not self.low_priority_queue.empty():
+                item = self.low_priority_queue.get_nowait()
+            print("low_priority_queue empty")
+            self.low_priority_queue.close()
+            self.low_priority_queue.cancel_join_thread() 
+            while not self.high_priority_queue.empty():
+                item = self.high_priority_queue.get_nowait()
+            print("high_priority_queue empty")
+            self.high_priority_queue.close()
+            self.high_priority_queue.cancel_join_thread() 
+            print("End close queues")
         self._stop_event.set()  # Imposta l'evento di arresto
 
-    def stop_threads(self):
+    def stop_processes(self):
         print("Stopping Manager threads...")
         # Stop monitoring thread
         self.monitoring_thread.stop()

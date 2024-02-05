@@ -7,7 +7,7 @@
 	"monitoring_socket_push": "tcp://localhost:5558",
 	"monitoring_socket_pull": "tcp://*:5558",
 	"result_socket_push": "tcp://localhost:5559",
-	"num_threads": 5
+	"num_workers": 5
   }
   
   

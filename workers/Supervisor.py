@@ -2,6 +2,7 @@ from MonitoringPoint import MonitoringPoint
 from WorkerThread import WorkerThread
 from MonitoringThread import MonitoringThread
 from WorkerManager import WorkerManager
+from WorkerProcess import WorkerProcess
 import json
 import zmq
 import queue
@@ -16,7 +17,6 @@ class Supervisor:
         self.name = name
         self.globalname = "Supervisor-"+name
         self.continueall = True
-
 
         self.pid = psutil.Process().pid
 
@@ -38,11 +38,12 @@ class Supervisor:
         # self.monitoringpoint = MonitoringPoint(self)
         # self.monitoring_thread = None
 
-        self.manager_threads = []
+        self.manager_workers = []
         self.status = "Initialised"
         #process data based on Supervisor state
-        self.processdata = False
-        self.suspenddata = False
+        self.processdata = 0
+        self.suspenddata = 0
+
         print(f"{self.globalname} started")
 
     def load_configuration(self, config_file):
@@ -57,7 +58,7 @@ class Supervisor:
             print(f"Error: Invalid JSON format in file '{config_file}'.")
             return
 
-        self.num_threads = self.config_data.get("num_threads", 5)
+        self.num_workers = self.config_data.get("num_workers", 5)
 
     def start_service_threads(self):
         #Monitoring thread
@@ -75,21 +76,23 @@ class Supervisor:
         self.hp_data_thread.start()
 
     #to be reimplemented ####
-    def start_manager_threads(self):
-        manager = WorkerManager(self, "Generic")
+    def start_manager_workers(self):
+        manager = WorkerManager(self, "Process", "Generic")
         manager.start()
-        self.manager_threads.append(manager)
+        self.manager_workers.append(manager)
 
-    def start_worker_threads(self, num_threads=5):
+    def start_workers(self, num_workers=5):
         #Worker threads
-        for manager in self.manager_threads: 
-            manager.start_worker_threads(num_threads)
-
+        for manager in self.manager_workers: 
+            if manager.manager_type == "Thread":
+                manager.start_worker_threads(num_workers)
+            if manager.manager_type == "Process":
+                manager.start_worker_processes(num_workers)
 
     def start(self):
         self.start_service_threads()
-        self.start_manager_threads()
-        self.start_worker_threads(self.num_threads)
+        self.start_manager_workers()
+        self.start_workers(self.num_workers)
 
         self.status = "Waiting"
 
@@ -107,14 +110,14 @@ class Supervisor:
         while True:
             if not self.suspenddata:
                 data = self.socket_lp_data.recv()
-                for manager in self.manager_threads: 
+                for manager in self.manager_workers: 
                     manager.low_priority_queue.put(data) 
 
     def listen_for_hp_data(self):
         while True:
             if not self.suspenddata:
                 data = self.socket_hp_data.recv()
-                for manager in self.manager_threads: 
+                for manager in self.manager_workers: 
                     self.high_priority_queue.put(data) 
 
 
@@ -135,68 +138,84 @@ class Supervisor:
                 self.stop_threads()
                 self.continueall = False
             if subtype_value == "cleanedshutdown":
-                self.status = "EndingProcessing"
-                self.suspenddata = True
-                for manager in self.manager_threads:
-                    manager.status = "EndingProcessing"
-                    manager.suspenddata = True
-                    while manager.low_priority_queue.qsize() != 0 and manager.low_priority_queue.qsize() != 0:
-                        time.sleep(0.1)
-                    print(f"Queues of manager {manager.globalname} are empty {manager.low_priority_queue.qsize()} {manager.low_priority_queue.qsize() }")
-                    manager.status = "Shutdown"
-                    
+                if self.status == "Processing":
+                    self.status = "EndingProcessing"
+                    self.suspenddata = True
+                    for manager in self.manager_workers:
+                        print(f"Trying to stop {manager.globalname}...")
+                        manager.status = "EndingProcessing"
+                        manager.suspenddata = True
+                        while manager.low_priority_queue.qsize() != 0 and manager.low_priority_queue.qsize() != 0:
+                            time.sleep(0.1)
+                        print(f"Queues of manager {manager.globalname} are empty {manager.low_priority_queue.qsize()} {manager.low_priority_queue.qsize() }")
+                        manager.status = "Shutdown"
+                else:
+                    print("WARNING! Not in Processing state for a cleaned shutdown. Force the shutdown.") 
                 self.status = "Shutdown"
                 self.stop_threads()
                 self.continueall = False
             if subtype_value == "getstatus":
-                for manager in self.manager_threads:
+                for manager in self.manager_workers:
                     manager.monitoring_thread.sendto(pidsource)
             if subtype_value == "start": #data processing
                 self.status = "Processing"
-                for manager in self.manager_threads:
+                for manager in self.manager_workers:
                     manager.status = "Processing"
-                    manager.processdata = True
+                    manager.set_processdata(1)
                 pass
             if subtype_value == "suspend": #data processing
                 self.status = "Suspend"
-                for manager in self.manager_threads:
+                for manager in self.manager_workers:
                     manager.status = "Suspend"
-                    manager.processdata = False
+                    manager.set_processdata(0)
                 pass
             if subtype_value == "suspenddata": #data acquisition
-                for manager in self.manager_threads:
+                for manager in self.manager_workers:
                     manager.suspenddata = True
                 pass
             if subtype_value == "startdata": #data acquisition
-                for manager in self.manager_threads:
+                for manager in self.manager_workers:
                     manager.suspenddata = False
                 pass
             if subtype_value == "restart": #data processing
                 self.status = "Processing"
-                for manager in self.manager_threads:
+                for manager in self.manager_workers:
                     manager.status = "Processing"
-                    manager.processdata = True
+                    manager.set_processdata(1)
                 pass       
             if subtype_value == "stop": #data processing
                 self.status = "Waiting"
-                for manager in self.manager_threads:
+                for manager in self.manager_workers:
                     manager.status = "Waiting"
-                    manager.processdata = False
+                    manager.set_processdata(0)
                 pass    
         # monitoringpoint_data = self.monitoringpoint.get_data()
         # print(f"MonitoringPoint data: {monitoringpoint_data}")
 
     def stop_threads(self):
-        print("Stopping all threads...")
+        print("Stopping all workers...")
         # Stop monitoring thread
         # self.monitoring_thread.stop()
         # self.monitoring_thread.join()
 
+        self.suspenddata = True
+        time.sleep(0.1)
+
         # Stop worker threads
-        for manager in self.manager_threads: 
+        for manager in self.manager_workers: 
             for thread in manager.worker_threads:
                 thread.stop()
                 thread.join()
+
+
+       # Stop worker threads
+        for manager in self.manager_workers: 
+            for process in manager.worker_processes:
+                process.stop()
+                process.join()
+
+
+        for manager in self.manager_workers: 
             manager.stop()
             manager.join()
 

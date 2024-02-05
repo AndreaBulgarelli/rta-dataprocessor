@@ -6,7 +6,11 @@ class Supervisor1(Supervisor):
 		super().__init__(config_file, name)
 
 	def start_manager_threads(self):
-		manager = WorkerManager1(self, "S22")
-		manager.start()
-		self.manager_threads.append(manager)
+		manager1 = WorkerManager1(self, "S22Rate")
+		manager1.start()
+		self.manager_threads.append(manager1)
+
+		# manager2 = WorkerManager1(self, "S22Mean")
+		# manager2.start()
+		# self.manager_threads.append(manager2)
 

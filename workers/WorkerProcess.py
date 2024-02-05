@@ -1,16 +1,19 @@
-import threading
 import queue
+import multiprocessing
 import json
 import time
+from multiprocessing import Event, Queue, Process
 from threading import Timer
+import psutil
 
-class WorkerThread(threading.Thread):
-    def __init__(self, worker_id, manager, name="None"):
+class WorkerProcess(Process):
+    def __init__(self, worker_id, manager, processdata_shared, name="None"):
         super().__init__()
         self.manager = manager
         self.worker_id = worker_id
         self.name = name
-        self.globalname = f"WorkerThread-{self.manager.supervisor.name}-{self.manager.name}-{self.name}-{self.worker_id}"
+        self.pidprocess = psutil.Process().pid
+        self.globalname = f"WorkerProcess-{self.manager.supervisor.name}-{self.manager.name}-{self.name}-{self.worker_id}"
 
         self.low_priority_queue = self.manager.low_priority_queue
         self.high_priority_queue = self.manager.high_priority_queue
@@ -23,28 +26,34 @@ class WorkerThread(threading.Thread):
         self.total_processed_data_count = 0
         self.processing_rate = 0
 
-        self._stop_event = threading.Event()  # Usato per segnalare l'arresto
+        self._stop_event = Event()  # Usato per segnalare l'arresto
 
         self.processdata = 0
+        self.processdata_shared = processdata_shared
 
-        print(f"{self.globalname} started")
+        self.testvar = "hello"
+
+        print(f"{self.globalname} started {self.pidprocess}")
 
     def stop(self):
         self._stop_event.set()  # Imposta l'evento di arresto
         #self.timer.cancel()
 
     def set_processdata(self, processdata1):
-        print(f"Worker set_processdata {processdata1}")
+        print(f"Worker {self.globalname} set_processdata {processdata1}")
         self.processdata=processdata1
-        print(self.processdata)
+        print(f"Worker {self.globalname} set_processdata {self.processdata}")
 
     def run(self):
+        print(f"{self.globalname} run entering...")
         self.start_timer(10)
 
         while not self._stop_event.is_set():
-            time.sleep(0.00001) #must be 0
+            time.sleep(0.01) #must be 0
+            #print(f"wait. {self.globalname} / {self.processdata} Queues size: {self.manager.low_priority_queue.qsize()} {self.manager.high_priority_queue.qsize()}")  
 
-            if self.manager.processdata == 1:
+            if self.processdata_shared.value == 1:
+                #print(f"wait2. {self.globalname} / {self.processdata} Queues size: {self.manager.low_priority_queue.qsize()} {self.manager.high_priority_queue.qsize()}")
 
                 try:
                     # Check and process high-priority queue first
@@ -57,9 +66,9 @@ class WorkerThread(threading.Thread):
                         self.process_data(low_priority_data, priority="Low")
                     except queue.Empty:
                         pass  # Continue if both queues are empty
-        
+
         self.timer.cancel()
-        print(f"Worker stop {self.globalname}")
+        print(f"WorkerProcess stop {self.globalname}")
 
     def start_timer(self, interval):
         self.timer = Timer(interval, self.calcdatarate)
@@ -70,9 +79,8 @@ class WorkerThread(threading.Thread):
         self.next_time = time.time()
         self.processing_rate = self.processed_data_count / elapsed_time
         self.total_processed_data_count += self.processed_data_count
-        print(f"{self.globalname} rate Hz {self.processing_rate:.1f} total events {self.total_processed_data_count}")
+        print(f"{self.globalname} rate Hz {self.processing_rate:.1f} total events {self.total_processed_data_count}. State {self.processdata_shared.value}")
         self.processed_data_count = 0
-
         if not self._stop_event.is_set():
             self.start_timer(10)
 

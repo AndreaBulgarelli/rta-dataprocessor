@@ -11,7 +11,7 @@ class MonitoringPoint:
         header = {
                 "type": 1,
                 "time": 0,  # Replace with actual timestamp if needed
-                "pidsource": self.manager.name,
+                "pidsource": self.manager.globalname,
                 "pidtarget": "*"
         }
         self.data["header"] = header
@@ -29,7 +29,7 @@ class MonitoringPoint:
         print("MonitoringPoint initialised")
 
     def update(self, key, value):
-        with self.lock:
+        #with self.lock:
             self.data[key] = value
             #if key in self.data:
             #    self.data[key] = value
@@ -45,9 +45,12 @@ class MonitoringPoint:
             self.update("queue_lp_size", self.manager.low_priority_queue.qsize())
             self.update("queue_hp_size", self.manager.high_priority_queue.qsize())
 
-            for thread in self.manager.worker_threads:
-                self.processing_rates[thread.thread_id] = thread.processing_rate
-                self.processing_tot_events[thread.thread_id] = thread.total_processed_data_count
+            for worker in self.manager.worker_processes:
+                self.processing_rates[worker.worker_id] = worker.processing_rate
+                self.processing_tot_events[worker.worker_id] = worker.total_processed_data_count
+            for worker in self.manager.worker_threads:
+                self.processing_rates[worker.worker_id] = worker.processing_rate
+                self.processing_tot_events[worker.worker_id] = worker.total_processed_data_count
             self.data["processing_rates"] = self.processing_rates
             self.data["processing_tot_events"] = self.processing_tot_events
              # Create a copy of the data
@@ -55,11 +58,11 @@ class MonitoringPoint:
             return self.data
  
     def set_status(self, new_status):
-        with self.lock:
+        #with self.lock:
             self.data["status"] = new_status
 
     def get_status(self):
-        with self.lock:
+        #with self.lock:
             return self.data["status"]
 
     def resource_monitor(self):

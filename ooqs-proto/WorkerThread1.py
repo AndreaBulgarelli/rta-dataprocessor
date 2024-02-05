@@ -42,5 +42,5 @@ class WorkerThread1(WorkerThread):
 		avro_message = self.reader.read(decoder)
 
 		# Process the decoded Avro message as needed
-		print(self.globalname)
-		print(avro_message)
+		#print(self.globalname)
+		#print(avro_message)
