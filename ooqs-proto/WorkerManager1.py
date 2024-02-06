@@ -1,3 +1,11 @@
+# Copyright (C) 2024 INAF
+# This software was provided as IKC to the Cherenkov Telescope Array Observatory
+# This software is distributed under the terms of the BSD-3-Clause license
+#
+# Authors:
+#
+#    Andrea Bulgarelli <andrea.bulgarelli@inaf.it>
+#
 from WorkerManager import WorkerManager
 from WorkerThread1 import WorkerThread1
 from WorkerProcess1 import WorkerProcess1
