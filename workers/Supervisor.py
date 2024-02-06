@@ -12,22 +12,34 @@ import sys
 import psutil
 
 class Supervisor:
-    def __init__(self, config_file="config.json", name = "None"):
+    #dataflowtype = Stream | File
+    def __init__(self, config_file="config.json", dataflowtype="Stream", name = "None"):
         self.load_configuration(config_file)
         self.name = name
         self.globalname = "Supervisor-"+name
         self.continueall = True
+        self.dataflowtype = dataflowtype
 
         self.pid = psutil.Process().pid
 
         self.context = zmq.Context()
-        
-        #low priority data connection
-        self.socket_lp_data = self.context.socket(zmq.PULL)
-        self.socket_lp_data.bind(self.config_data["data_lp_socket_pull"])
-        #high priority data connection
-        self.socket_hp_data = self.context.socket(zmq.PULL)
-        self.socket_hp_data.bind(self.config_data["data_hp_socket_pull"])
+
+        print(f"Supervisor: {self.dataflowtype} configuration")   
+        if self.dataflowtype == "Stream":
+            #low priority data stream connection
+            self.socket_lp_data = self.context.socket(zmq.PULL)
+            self.socket_lp_data.bind(self.config_data["datastream_lp_socket_pull"])
+            #high priority data stream connection
+            self.socket_hp_data = self.context.socket(zmq.PULL)
+            self.socket_hp_data.bind(self.config_data["datastream_hp_socket_pull"])
+
+        if self.dataflowtype == "File":
+        #low priority data file connection
+            self.socket_lp_file = self.context.socket(zmq.PULL)
+            self.socket_lp_file.bind(self.config_data["datafile_lp_socket_pull"])
+            #high priority data file connection
+            self.socket_hp_file = self.context.socket(zmq.PULL)
+            self.socket_hp_file.bind(self.config_data["datafile_hp_socket_pull"])
         
         self.socket_command = self.context.socket(zmq.SUB)
         self.socket_command.connect(self.config_data["command_socket_pubsub"])
@@ -69,17 +81,26 @@ class Supervisor:
         #self.command_thread = threading.Thread(target=self.listen_for_commands, daemon=True)
         #self.command_thread.start()
 
-        #Data receiving on two queues: high and low priority
-        self.lp_data_thread = threading.Thread(target=self.listen_for_lp_data, daemon=True)
-        self.lp_data_thread.start()
+        if self.dataflowtype == "Stream":
+            #Data receiving on two queues: high and low priority
+            self.lp_data_thread = threading.Thread(target=self.listen_for_lp_data, daemon=True)
+            self.lp_data_thread.start()
 
-        self.hp_data_thread = threading.Thread(target=self.listen_for_hp_data, daemon=True)
-        self.hp_data_thread.start()
+            self.hp_data_thread = threading.Thread(target=self.listen_for_hp_data, daemon=True)
+            self.hp_data_thread.start()
+        
+        if self.dataflowtype == "File":
+            #Data receiving on two queues: high and low priority
+            self.lp_data_thread = threading.Thread(target=self.listen_for_lp_file, daemon=True)
+            self.lp_data_thread.start()
+
+            self.hp_data_thread = threading.Thread(target=self.listen_for_hp_file, daemon=True)
+            self.hp_data_thread.start()       
 
     #to be reimplemented ####
     def start_managers(self):
         #manager_type="Process" or manager_type="Thread"
-        manager = WorkerManager(self, "Thread", "Generic")
+        manager = WorkerManager(self, "Process", "Generic")
         manager.start()
         self.manager_workers.append(manager)
 
@@ -120,6 +141,19 @@ class Supervisor:
                 for manager in self.manager_workers: 
                     self.high_priority_queue.put(data) 
 
+    def listen_for_lp_file(self):
+        while True:
+            if not self.suspenddata:
+                filename = self.socket_lp_file.recv()
+                for manager in self.manager_workers: 
+                    manager.low_priority_queue.put(filename) 
+
+    def listen_for_hp_file(self):
+        while True:
+            if not self.suspenddata:
+                filename = self.socket_hp_file.recv()
+                for manager in self.manager_workers: 
+                    self.high_priority_queue.put(filename) 
 
     def listen_for_commands(self):
         while True:
@@ -219,6 +253,6 @@ class Supervisor:
             manager.stop(fast)
             manager.join()
 
-        print("All all workers and managers terminated.")
-        sys.exit(1)
+        print("All workers and managers terminated.")
+        sys.exit(0)
 

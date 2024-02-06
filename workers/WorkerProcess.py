@@ -10,10 +10,11 @@ class WorkerProcess(Process):
     def __init__(self, worker_id, manager, processdata_shared, name="None"):
         super().__init__()
         self.manager = manager
+        self.supervisor = manager.supervisor
         self.worker_id = worker_id
         self.name = name
         self.pidprocess = psutil.Process().pid
-        self.globalname = f"WorkerProcess-{self.manager.supervisor.name}-{self.manager.name}-{self.name}-{self.worker_id}"
+        self.globalname = f"WorkerProcess-{self.supervisor.name}-{self.manager.name}-{self.name}-{self.worker_id}"
 
         self.low_priority_queue = self.manager.low_priority_queue
         self.high_priority_queue = self.manager.high_priority_queue
@@ -36,7 +37,7 @@ class WorkerProcess(Process):
         self._stop_event.set()  # Set the stop event
 
     def run(self):
-        self.start_timer(10)
+        self.start_timer(1)
 
         while not self._stop_event.is_set():
             time.sleep(0.0001) #must be 0

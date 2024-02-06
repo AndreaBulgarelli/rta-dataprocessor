@@ -2,8 +2,8 @@ from Supervisor import Supervisor
 from WorkerManager1 import WorkerManager1
 
 class Supervisor1(Supervisor):
-	def __init__(self, config_file="config.json", name="OOQS1"):
-		super().__init__(config_file, name)
+	def __init__(self, config_file="config.json", dataflowtype = "Stream", name="OOQS1"):
+		super().__init__(config_file, dataflowtype, name)
 
 	def start_managers(self):
 		# manager1 = WorkerManager1(self, "Thread", "S22Rate")

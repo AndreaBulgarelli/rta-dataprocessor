@@ -8,9 +8,10 @@ class WorkerThread(threading.Thread):
     def __init__(self, worker_id, manager, name="None"):
         super().__init__()
         self.manager = manager
+        self.supervisor = manager.supervisor
         self.worker_id = worker_id
         self.name = name
-        self.globalname = f"WorkerThread-{self.manager.supervisor.name}-{self.manager.name}-{self.name}-{self.worker_id}"
+        self.globalname = f"WorkerThread-{self.supervisor.name}-{self.manager.name}-{self.name}-{self.worker_id}"
 
         self.low_priority_queue = self.manager.low_priority_queue
         self.high_priority_queue = self.manager.high_priority_queue

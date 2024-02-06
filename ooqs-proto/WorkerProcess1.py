@@ -35,12 +35,16 @@ class WorkerProcess1(WorkerProcess):
 	def process_data(self, data, priority):
 		super().process_data(data, priority)
 		# Custom processing logic for Worker1
-		#print("Process data...")
+		print("Process data...")
 		# Deserialize the Avro message using avro library
-		bytes_io = io.BytesIO(data)
-		decoder = avro.io.BinaryDecoder(bytes_io)
-		avro_message = self.reader.read(decoder)
+		if self.supervisor.dataflowtype == "Stream":
+			bytes_io = io.BytesIO(data)
+			decoder = avro.io.BinaryDecoder(bytes_io)
+			avro_message = self.reader.read(decoder)
 
-		# Process the decoded Avro message as needed
-		#print(self.globalname)
-		#print(avro_message)
+			# Process the decoded Avro message as needed
+			#print(self.globalname)
+			#print(avro_message)
+			
+		if self.supervisor.dataflowtype == "File":
+			print(data)

@@ -4,7 +4,7 @@ from Supervisor1 import Supervisor1
 
 def main(json_file_path, consumername):
     #try:
-        supervisor_instance = Supervisor1(json_file_path, consumername)
+        supervisor_instance = Supervisor1(json_file_path, "File", consumername)
         supervisor_instance.start()
     #except Exception as e:
     #    print(f"Error: {e}")
