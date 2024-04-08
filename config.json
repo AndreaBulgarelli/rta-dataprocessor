@@ -6,9 +6,9 @@
   },
   {
 	"processname": "OOQS1",
-	"dataflow_type": "string",
+	"dataflow_type": "binary",
 	"processing_type": "thread",
-	"datasocket_type": "pubsub",
+	"datasocket_type": "pushpull",
 	"data_lp_socket": "tcp://localhost:5555",
 	"data_hp_socket": "tcp://localhost:5556",
 	"command_socket": "tcp://127.0.0.1:5561",
