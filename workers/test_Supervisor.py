@@ -20,24 +20,12 @@ import pytest
 import random 
 import keyboard
 import socket
-from busypie import wait_at_most
 
 file_path = '/home/nunzio/rta-dataprocessor/config.json'
 file_path_2 = '/home/nunzio/rta-dataprocessor/config_2.json'
-context = zmq.Context()
-# publisher = context.socket(zmq.PUSH)
-# stop_thread = threading.Event()
-
-@pytest.fixture
-# def cleanup_after_test(request):
-#     def cleanup():
-#         test_sup.stop_zmq()
-#         print("\nEseguito cleanup dopo il test")
-        
-#     request.addfinalizer(cleanup)
-        
 
 def test_init_pubsub():
+    
     test_sup = Supervisor(file_path,'OOQS1')
     
     assert test_sup.name == 'OOQS1'
@@ -48,8 +36,8 @@ def test_init_pubsub():
     assert test_sup.globalname == "Supervisor-"+'OOQS1'
     assert test_sup.continueall == True
     assert test_sup.pid == psutil.Process().pid
-    assert test_sup.processingtype == 'thread'
-    assert test_sup.dataflowtype == 'filename'
+    assert test_sup.processingtype == 'process'
+    assert test_sup.dataflowtype == 'string'
     assert test_sup.datasockettype == 'pubsub'
     assert test_sup.socket_lp_data.type == zmq.SocketType.SUB
     assert test_sup.socket_hp_data.type == zmq.SocketType.SUB
@@ -61,8 +49,6 @@ def test_init_pubsub():
     assert test_sup.stopdata == False
     assert test_sup.status =='Initialised'
     test_sup.stop_zmq()
-    #del(test_sup)
-
     
 def test_init_pushpull():
     test_sup = Supervisor(file_path,'OOQS2')
@@ -119,11 +105,11 @@ def test_start_service_threads():
     assert test_sup.result_thread._target == test_sup.listen_for_result
     assert test_sup.result_thread.is_alive()
     
-    keyboard_interrupt_simulation()
+    time.sleep(2)
     
-    test_sup.stop_zmq()
-    #del(test_sup)
-        
+    #keyboard_interrupt_simulation()
+    
+    test_sup.stop_zmq()        
 
 def test_setup_result_channel():
     test_sup = Supervisor(file_path,'OOQS1')
@@ -232,10 +218,10 @@ def test_listen_for_result():
     
     keyboard_interrupt_simulation()
     
-    test_sup.manager_workers[0].stop()
+    #test_sup.manager_workers[0].stop()
     my_thread.join()
     
-    test_sup.stop_zmq()
+    #test_sup.stop_zmq()
 
 # def rcv_data(Sup,manager):
 #     context = zmq.Context()
@@ -422,7 +408,7 @@ def test_listen_for_lp_data():
         keyboard_interrupt_simulation()
         raise AssertionError
     
-    test_sup.manager_workers[0].stop()
+    #test_sup.manager_workers[0].stop()
     my_sec_thread.join()
     my_thread.join()
     time.sleep(0.5)
@@ -453,7 +439,7 @@ def test_listen_for_hp_data():
         keyboard_interrupt_simulation()
         raise AssertionError
     
-    test_sup.manager_workers[0].stop()
+    #test_sup.manager_workers[0].stop()
     
     my_sec_thread.join()
     
@@ -489,7 +475,7 @@ def test_listen_for_lp_string():
         keyboard_interrupt_simulation()
         raise AssertionError
     
-    test_sup.manager_workers[0].stop()
+    #test_sup.manager_workers[0].stop()
     my_sec_thread.join()
     my_thread.join()
     time.sleep(0.5)
@@ -521,7 +507,7 @@ def test_listen_for_hp_string():
         keyboard_interrupt_simulation()
         raise AssertionError
     
-    test_sup.manager_workers[0].stop()
+    #test_sup.manager_workers[0].stop()
     my_sec_thread.join()
     my_thread.join()
     time.sleep(0.5)
@@ -553,7 +539,7 @@ def test_listen_for_lp_file():
         keyboard_interrupt_simulation()
         raise AssertionError
     
-    test_sup.manager_workers[0].stop()
+    #test_sup.manager_workers[0].stop()
     my_sec_thread.join()
     my_thread.join()
     time.sleep(0.5)
@@ -585,7 +571,7 @@ def test_listen_for_hp_file():
         keyboard_interrupt_simulation()
         raise AssertionError
     
-    test_sup.manager_workers[0].stop()
+    #test_sup.manager_workers[0].stop()
     publisher.close()
     my_sec_thread.join()
     my_thread.join(5)
