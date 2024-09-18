@@ -10,7 +10,6 @@ build/
 logs/
 CMakeFiles/
 CMakeCache.txt
-CMakeLists.txt
 ProcessDataConsumer
 ProcessDataConsumer1
 lib/
