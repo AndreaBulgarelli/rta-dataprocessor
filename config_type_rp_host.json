@@ -4,7 +4,7 @@
         "monitoring_forwarder":"off",
         "forwarder_frontend_socket": "none",
         "forwarder_backend_socket": "none",
-        "monitoring_socket": "tcp://192.168.11.1:5561"
+        "monitoring_socket": "tcp://luca-HP-Pavilion-Laptop-15-eh2xxx.local:5561"
     },
 	{
         "processname": "CommandCenter",
