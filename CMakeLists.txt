@@ -39,8 +39,7 @@ find_package(Boost 1.73.0 REQUIRED COMPONENTS iostreams filesystem program_optio
 message(STATUS "Boost version: ${Boost_VERSION}")
 
 # Imposta manualmente il percorso per JSONDOM
-set(JsonDom_INCLUDE_DIR "/usr/local/include/jsondom")  # Percorso degli header
-set(JsonDom_LIBRARY "/usr/local/lib/libjsondom.so")    # Percorso della libreria
+set(JsonDom_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/avro/lang/c++/impl")  
 
 # Setta i percorsi per le dipendenze
 set(Spdlog_INCLUDE_DIR "/usr/local/include/spdlog")
