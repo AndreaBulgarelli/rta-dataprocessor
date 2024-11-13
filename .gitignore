@@ -4,8 +4,6 @@
 *.Identifier
 .vscode/
 .vs/
-avro/
-avro-cpp-1.11.3/
 build/
 logs/
 CMakeFiles/

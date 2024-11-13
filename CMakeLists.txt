@@ -38,6 +38,10 @@ message(STATUS "ZeroMQ version: ${ZeroMQ_VERSION}")
 find_package(Boost 1.73.0 REQUIRED COMPONENTS iostreams filesystem program_options regex)
 message(STATUS "Boost version: ${Boost_VERSION}")
 
+# Imposta manualmente il percorso per JSONDOM
+set(JsonDom_INCLUDE_DIR "/usr/local/include/jsondom")  # Percorso degli header
+set(JsonDom_LIBRARY "/usr/local/lib/libjsondom.so")    # Percorso della libreria
+
 # Setta i percorsi per le dipendenze
 set(Spdlog_INCLUDE_DIR "/usr/local/include/spdlog")
 set(Boost_INCLUDE_DIR "/usr/local/include/boost")
@@ -48,7 +52,8 @@ set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 
-include_directories(${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIR} ${Spdlog_INCLUDE_DIR} ${INC_DIR} "/include")
+# Aggiungi il percorso degli header di JsonDom
+include_directories(${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIR} ${Spdlog_INCLUDE_DIR} ${INC_DIR} "/include" ${JsonDom_INCLUDE_DIR})
 link_directories("/usr/local/lib")  
 
 file(GLOB RTADP_PROTO_FILES "${CMAKE_SOURCE_DIR}/src/rtadp-proto/*.cpp")
@@ -58,10 +63,14 @@ set(SOURCES ${RTADP_PROTO_FILES} ${SRC_FILES})
 
 add_executable(ProcessDataConsumer1 ${SOURCES})
 target_compile_options(ProcessDataConsumer1 PRIVATE -g)
+
+# Collega la libreria jsondom manualmente
 target_link_libraries(ProcessDataConsumer1
     zmq 
     ${LIBS}
     ${Spdlog_LIBRARY}
     ${Boost_LIBRARY}  
     pthread
+    ${JsonDom_LIBRARY}  # Aggiungi la libreria jsondom
 )
+
