@@ -160,6 +160,7 @@ public:
     std::string getStatus() const;
 
     std::vector<std::shared_ptr<WorkerThread>> worker_threads;
+    std::vector<std::thread> worker_threads_run;  // Vettore per i thread
 
 
     // Getter for stopdata

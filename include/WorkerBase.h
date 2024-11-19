@@ -19,10 +19,11 @@ class WorkerBase {
     WorkerManager* manager = nullptr;
     Supervisor* supervisor = nullptr;
     std::shared_ptr<spdlog::logger> logger; 
-    std::string workersname;
     std::string fullname;
 
 public:
+    std::string workersname;
+
     WorkerBase();
     virtual ~WorkerBase();
 
