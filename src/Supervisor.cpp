@@ -78,6 +78,9 @@ Supervisor::Supervisor(std::string config_file, std::string name)
     processdata = 0;
     stopdata = true;
 
+    sendresultslock = std::make_shared<std::mutex>();
+
+
     // Set up signal handlers
     try {
         signal(SIGTERM, handle_signals);
@@ -103,7 +106,6 @@ Supervisor::~Supervisor() {
     delete logger;
 }
 
-
 // Static method to set the current instance
 void Supervisor::set_instance(Supervisor *instance) {
     Supervisor::instance = instance;
@@ -113,7 +115,6 @@ void Supervisor::set_instance(Supervisor *instance) {
 Supervisor* Supervisor::get_instance() {
     return Supervisor::instance;
 }
-
 
 std::vector<std::string> Supervisor::getNameWorkers() const {
     return worker_names;
@@ -137,6 +138,7 @@ void Supervisor::load_configuration(const std::string &config_file, const std::s
     name_workers = std::get<6>(workers_config);
 
     // Log the contents of the tuple
+    // DEBUG aggiunto per stampare i campi
     spdlog::info("manager_result_sockets_type: {}", manager_result_sockets_type);
     spdlog::info("manager_result_dataflow_type: {}", manager_result_dataflow_type);
 
@@ -179,7 +181,6 @@ void Supervisor::start_service_threads() {
     result_thread = std::thread(&Supervisor::listen_for_result, this);
 }
 
-
 // Set up result channel for a given WorkerManager
 void Supervisor::setup_result_channel(WorkerManager *manager, int indexmanager) {
     socket_lp_result[indexmanager] = nullptr;
@@ -213,8 +214,6 @@ void Supervisor::setup_result_channel(WorkerManager *manager, int indexmanager) 
         }
     }
 }
-
-
 
 // Start managers
 void Supervisor::start_managers() {
@@ -283,7 +282,7 @@ void Supervisor::handle_signals(int signum) {
     }
 }
 
-// Listen for result data
+///////////////////////////////////////////////////////////////////
 // Listen for result data
 void Supervisor::listen_for_result() {
     try {
@@ -292,6 +291,7 @@ void Supervisor::listen_for_result() {
 
             for (auto& manager : manager_workers) {
                 int attempt = 0;  // Contatore per i tentativi
+
                 while (manager == nullptr && attempt < 10) {
                     std::this_thread::sleep_for(std::chrono::seconds(1));  // Sleep for 1 second
                     spdlog::warn("Waiting for manager workers for listening results, attempt {}", attempt + 1);
@@ -350,27 +350,56 @@ void Supervisor::listen_for_result() {
 }
 */
 
+///////////////////////////////////////////////////////////////////
 // Send result data
 void Supervisor::send_result(WorkerManager *manager, int indexmanager) {
-    if (manager->getResultLpQueue()->size() == 0 && manager->getResultHpQueue()->size() == 0) {
+    // std::lock_guard<std::mutex> lock(*sendresultslock);
+
+  if (manager->getResultLpQueue()->empty() && manager->getResultHpQueue()->empty()) {
         return;
     }
 
     json data;
     int channel = -1;
+
     try {
+        // Prova a prelevare un elemento dalla HP queue
         channel = 1;
-        data = manager->getResultHpQueue()->front();
-        manager->getResultHpQueue()->pop();
+        spdlog::warn("Supervisor::send_result: HPQUEUE SIZE: {}", manager->getResultHpQueue()->size());
+        data = manager->getResultHpQueue()->get();  // Preleva dalla HP queue
     } catch (const std::exception &e) {
         try {
+            // Se fallisce, passa alla LP queue
             channel = 0;
-            data = manager->getResultLpQueue()->front();
-            manager->getResultLpQueue()->pop();
+            spdlog::warn("Supervisor::send_result: LPQUEUE SIZE: {}", manager->getResultLpQueue()->size());
+            data = manager->getResultLpQueue()->get();  // Preleva dalla LP queue
         } catch (const std::exception &e) {
+            // Entrambe le code sono vuote
             return;
         }
     }
+
+    /*
+        // Gestione della coda ad alta priorità
+    if (!manager->getResultHpQueue()->empty()) {
+        channel = 1;
+        spdlog::warn("Supervisor::send_result: HPQUEUE SIZE: {}", manager->getResultHpQueue()->size());
+        data = manager->getResultHpQueue()->front();
+        manager->getResultHpQueue()->pop();
+    }
+    // Gestione della coda a bassa priorità
+    else if (!manager->getResultLpQueue()->empty()) {
+        channel = 0;
+        spdlog::warn("Supervisor::send_result: LPQUEUE SIZE: {}", manager->getResultLpQueue()->size());
+        data = manager->getResultLpQueue()->front();
+        manager->getResultLpQueue()->pop();
+    }
+    // Code vuote
+    else {
+        spdlog::warn("Both queues are empty. Nothing to send.");
+        return;
+    }
+    */
 
     if (channel == 0) {
         if (manager->get_result_lp_socket() == "none") {
@@ -416,6 +445,7 @@ void Supervisor::send_result(WorkerManager *manager, int indexmanager) {
         }
     }
 }
+///////////////////////////////////////////////////////////////////
 
 // Listen for low priority data
 void Supervisor::listen_for_lp_data() {
@@ -500,8 +530,6 @@ void Supervisor::listen_for_lp_file() {
     logger->system("End listen_for_lp_file", globalname);
 }
 
-
-
 std::pair<std::vector<json>, int> Supervisor::open_file(const std::string &filename) {
     std::vector<json> data;  // Vector to store parsed JSON objects
     int size = 0;
@@ -577,9 +605,11 @@ void Supervisor::command_cleanedshutdown() {
     if (status == "Processing") {
         status = "EndingProcessing";
         command_stopdata();
+
         for (auto &manager : manager_workers) {
             std::cout << "Trying to stop " << manager->get_globalname() << "..." << std::endl;
             logger->system("Trying to stop " + manager->get_globalname() + "...", globalname);
+
             while (manager->getLowPriorityQueue()->size() != 0 || manager->getHighPriorityQueue()->size() != 0) {
                 std::cout << "Queues data of manager " << manager->get_globalname() << " have size " 
                           << manager->getLowPriorityQueue()->size() << " " << manager->getHighPriorityQueue()->size() << std::endl;
@@ -588,6 +618,7 @@ void Supervisor::command_cleanedshutdown() {
                                + std::to_string(manager->getHighPriorityQueue()->size()), globalname);
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
+
             while (manager->getResultLpQueue()->size() != 0 || manager->getResultHpQueue()->size() != 0) {
                 std::cout << "Queues result of manager " << manager->get_globalname() << " have size " 
                           << manager->getResultLpQueue()->size() << " " << manager->getResultHpQueue()->size() << std::endl;
@@ -597,9 +628,10 @@ void Supervisor::command_cleanedshutdown() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
         }
-    } else {
-        std::cerr << "WARNING! Not in Processing state for a cleaned shutdown. Force the shutdown." << std::endl;
-        logger->warning("WARNING! Not in Processing state for a cleaned shutdown. Force the shutdown.", globalname);
+    } 
+    else {
+        std::cerr << "WARNING! Not in Processing state for a clean shutdown. Force the shutdown." << std::endl;
+        logger->warning("WARNING! Not in Processing state for a clean shutdown. Force the shutdown.", globalname);
     }
 
     status = "Shutdown";
@@ -646,6 +678,7 @@ void Supervisor::command_startprocessing() {
     status = "Processing";
     std::cout << "CCCCC" << std::endl;
     send_info(1, status, fullname, 1, "Low");
+
     for (auto &manager : manager_workers) {
         manager->set_processdata(1);
     }
@@ -655,6 +688,7 @@ void Supervisor::command_startprocessing() {
 void Supervisor::command_stopprocessing() {
     status = "Waiting";
     send_info(1, status, fullname, 1, "Low");
+
     for (auto &manager : manager_workers) {
         manager->set_processdata(0);
     }

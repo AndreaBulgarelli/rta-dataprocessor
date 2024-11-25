@@ -87,18 +87,6 @@ void WorkerThread::run() {
                     // Process low-priority queue if high-priority queue is empty
                     if (!low_priority_queue->empty()) {
                         auto low_priority_data = low_priority_queue->front();
-
-                        // DEBUG
-                        if (typeid(low_priority_data) == typeid(std::string)) {
-                            spdlog::warn("WorkerThread::run: low_priority_data is a string.");
-                        }
-                        else if (typeid(low_priority_data) == typeid(nlohmann::json)) {
-                            spdlog::info("WorkerThread::run: low_priority_data is a JSON object.");
-                        }
-                        else {
-                            spdlog::info("WorkerThread::run: low_priority_data is of unknown type: {}", typeid(low_priority_data).name());
-                        }
-
                         low_priority_queue->pop();
                         manager->change_token_reading();
                         process_data(low_priority_data, 0);
@@ -110,7 +98,7 @@ void WorkerThread::run() {
                 spdlog::warn("Exception caught in WorkerThread run: {}", e.what());
 
                 // Rilancia l'eccezione dopo averla loggata
-                // throw;
+                throw;
             }
         } else {
             if (tokenreading != 0 && status != 4) {
@@ -125,8 +113,8 @@ void WorkerThread::run() {
     spdlog::info("WorkerThread stop {}", globalname);
     logger->system("WorkerThread stop", globalname);
 }
-//////////////////////////////////////////////////
 
+//////////////////////////////////////////////////
 // Destructor
 WorkerThread::~WorkerThread(){
     if (internal_thread && internal_thread->joinable()) {
@@ -219,6 +207,7 @@ void WorkerThread::process_data(const std::string& data, int priority) {
     status = 8; // processing new data
     processed_data_count++;
 
+    // DEBUG
     // spdlog::info("WorkerThread::process_data: Worker type: {}", typeid(*worker).name());
     spdlog::info("WorkerThread::process_data: Received data of size: {}", data.size());
     spdlog::info("WorkerThread::process_data: Called with priority: {}", priority);
@@ -230,14 +219,35 @@ void WorkerThread::process_data(const std::string& data, int priority) {
     }
 
     auto dataresult = worker->processData(data, priority);
+    auto dataresult_string = dataresult["data"].get<std::string>();     
 
-    if (!dataresult.empty() && tokenresult == 0) {
-        spdlog::warn("DENTRO IL CONTROLLO IF: DATARESULT != EMPTY");
+    // DEBUG
+    /*
+    std::cout << "\n DATARESULT: " << dataresult << std::endl;
+    std::cout << "\n DATARESULTDATA: " << dataresult["data"].get<std::string>() << std::endl;
+
+     if (dataresult["data"].is_string()) {
+        spdlog::warn("DATARESULTDATA IS STRING");
+    }
+    else {
+        spdlog::warn("DATARESULTDATA IS NOT STRING");
+    } 
+    */
+
+    if (!dataresult_string.empty() && tokenresult == 0) {
+        // spdlog::warn("DENTRO IL CONTROLLO IF: DATARESULT != EMPTY");
 
         if (priority == 0) {
-            manager->getResultLpQueue()->push(dataresult);
-        } else {
-            manager->getResultHpQueue()->push(dataresult);
+            spdlog::warn("WorkerThread::process_data: LPQUEUE SIZE: {}", manager->getResultLpQueue()->size());
+            spdlog::warn("WorkerThread::process_data: LPQUEUE EMPTY: {}", manager->getResultLpQueue()->empty());
+
+            manager->getResultLpQueue()->push(dataresult_string);
+        } 
+        else {
+            spdlog::warn("WorkerThread::process_data: HPQUEUE SIZE: {}", manager->getResultHpQueue()->size());
+            spdlog::warn("WorkerThread::process_data: HPQUEUE EMPTY: {}", manager->getResultHpQueue()->empty());
+
+            manager->getResultHpQueue()->push(dataresult_string);
         }
         manager->change_token_results();
     }

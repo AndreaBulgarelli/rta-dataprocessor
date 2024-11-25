@@ -15,6 +15,8 @@
 #include "json.hpp"  // Include nlohmann::json for configuration
 #include "WorkerLogger.h"
 
+#include "ThreadSafeQueue.h"
+
 class WorkerProcess {
 public:
     WorkerProcess(int worker_id, std::shared_ptr<WorkerManager> manager, const std::string& name, std::shared_ptr<WorkerBase> worker);
@@ -34,8 +36,10 @@ private:
     std::shared_ptr<Supervisor> supervisor;
     std::shared_ptr<WorkerBase> worker;
 
-    std::shared_ptr<std::queue<std::string>> low_priority_queue;
-    std::shared_ptr<std::queue<std::string>> high_priority_queue;
+    //////////////////////
+    std::shared_ptr<ThreadSafeQueue<std::string>> low_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::string>> high_priority_queue;
+    /////////////////////
 
     std::string name;
     std::string workersname;

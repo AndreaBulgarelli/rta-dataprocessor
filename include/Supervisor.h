@@ -31,6 +31,7 @@ class Supervisor {
     // Static pointer to the current instance
     static Supervisor* instance;
 
+    std::shared_ptr<std::mutex> sendresultslock;
 
 public:
     std::vector<std::string> worker_names;

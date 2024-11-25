@@ -31,10 +31,18 @@ WorkerManager::WorkerManager(int manager_id, Supervisor* supervisor, const std::
     pid = getpid();
     socket_monitoring = supervisor->socket_monitoring;
        
-    low_priority_queue = std::make_shared<std::queue<std::string>>();
-    high_priority_queue = std::make_shared<std::queue<std::string>>();
-    result_lp_queue = std::make_shared<std::queue<std::string>>();
-    result_hp_queue = std::make_shared<std::queue<std::string>>();
+    /////////////////////////////////////////////
+    low_priority_queue = std::make_shared<ThreadSafeQueue<std::string>>();
+    high_priority_queue = std::make_shared<ThreadSafeQueue<std::string>>();
+
+    result_lp_queue = std::make_shared<ThreadSafeQueue<std::string>>();
+    result_hp_queue = std::make_shared<ThreadSafeQueue<std::string>>();
+
+    // low_priority_queue = std::make_shared<std::queue<std::string>>();
+    // high_priority_queue = std::make_shared<std::queue<std::string>>();
+    // result_lp_queue = std::make_shared<std::queue<std::string>>();
+    // result_hp_queue = std::make_shared<std::queue<std::string>>();
+    /////////////////////////////////////////////
     
     // Initialize monitoring
     monitoringpoint = nullptr;
@@ -123,6 +131,25 @@ std::vector<std::shared_ptr<WorkerThread>> WorkerManager::getWorkerThreads() {
     return worker_threads;
 }
 
+
+/////////////////////////////////////////////
+std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getLowPriorityQueue() const {
+    return low_priority_queue;
+}
+
+std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getHighPriorityQueue() const {
+    return high_priority_queue;
+}
+
+std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getResultLpQueue() const {
+    return result_lp_queue;
+}
+
+std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getResultHpQueue() const {
+    return result_hp_queue;
+}
+
+/* 
 std::shared_ptr<std::queue<std::string>> WorkerManager::getLowPriorityQueue() const {
     return low_priority_queue;
 }
@@ -138,6 +165,9 @@ std::shared_ptr<std::queue<std::string>> WorkerManager::getResultLpQueue() const
 std::shared_ptr<std::queue<std::string>> WorkerManager::getResultHpQueue() const {
     return result_hp_queue;
 }
+*/
+/////////////////////////////////////////////
+
 
 MonitoringPoint* WorkerManager::getMonitoringPoint() const {
     return monitoringpoint;
@@ -297,7 +327,8 @@ void WorkerManager::run() {
             for (auto& thread : worker_threads) {
                 if (thread->get_status() == 0) {
                     workersstatusinit++;
-                } else {
+                } 
+                else {
                     workersstatus += thread->get_status();
                 }
             }
@@ -348,9 +379,11 @@ void WorkerManager::stop(bool fast) {
 void WorkerManager::stop_internalthreads() {
     spdlog::info("Stopping Manager internal threads...");
     logger->system("Stopping Manager internal threads...", globalname);
+
     if (monitoring_thread.joinable()) {
         monitoring_thread.join(); // Use join instead of detach for proper cleanup
     }
+    
     spdlog::info("All Manager internal threads terminated.");
     logger->system("All Manager internal threads terminated.", globalname);
 }
@@ -364,7 +397,8 @@ void WorkerManager::configworkers(const json& configuration) {
     }
 }
 
-void WorkerManager::clean_single_queue(std::shared_ptr<std::queue<std::string>>& queue, const std::string& queue_name) {
+// void WorkerManager::clean_single_queue(std::shared_ptr<std::queue<std::string>>& queue, const std::string& queue_name) {
+void WorkerManager::clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::string>>& queue, const std::string& queue_name) {
     if (!queue->empty()) {
         spdlog::info("   - {} size {}", queue_name, queue->size());
         logger->system(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);

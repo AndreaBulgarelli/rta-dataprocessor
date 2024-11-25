@@ -32,7 +32,8 @@ public:
 
     virtual void config(const nlohmann::json& configuration);
 
-    // virtual std::string process_data(const std::string& data);
+    // virtual std::string 
+    // const std::string& data);
     virtual nlohmann::json processData(const nlohmann::json& data, int priority);
 
     Supervisor* get_supervisor() const{{

@@ -23,6 +23,8 @@
 #include "Supervisor.h"
 #include "WorkerProcess.h"
 
+#include "ThreadSafeQueue.h"
+
 
 using json = nlohmann::json;
 class WorkerProcess;
@@ -52,10 +54,20 @@ private:
     int pid;
     zmq::context_t&  context;
     zmq::socket_t* socket_monitoring;
-    std::shared_ptr<std::queue<std::string>> low_priority_queue;
-    std::shared_ptr<std::queue<std::string>> high_priority_queue;
-    std::shared_ptr<std::queue<std::string>> result_lp_queue;
-    std::shared_ptr<std::queue<std::string>> result_hp_queue;
+
+
+    ////////////////////////////////////////////
+    std::shared_ptr<ThreadSafeQueue<std::string>> low_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::string>> high_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::string>> result_lp_queue;
+    std::shared_ptr<ThreadSafeQueue<std::string>> result_hp_queue;
+
+    // std::shared_ptr<std::queue<std::string>> low_priority_queue;
+    // std::shared_ptr<std::queue<std::string>> high_priority_queue;
+    // std::shared_ptr<std::queue<std::string>> result_lp_queue;
+    // std::shared_ptr<std::queue<std::string>> result_hp_queue;
+    ////////////////////////////////////////////
+
     MonitoringPoint* monitoringpoint;
     MonitoringThread* monitoringthread;
     std::vector<std::shared_ptr<WorkerThread>> workerprocesses;
@@ -76,7 +88,7 @@ private:
     std::vector<std::atomic<int>> total_processed_data_count_shared;
  
     // Helper function to clean a single queue
-    void clean_single_queue(std::shared_ptr<std::queue<std::string>>& queue, const std::string& queue_name);
+    void clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::string>>& queue, const std::string& queue_name);
  
     // Helper function to close a queue
     void close_queue(std::shared_ptr<std::queue<std::string>>& queue, const std::string& queue_name);
@@ -136,8 +148,7 @@ public:
     Supervisor* getSupervisor() const;
 
     std::string getName() const;
-    std::shared_ptr<std::queue<std::string>> getLowPriorityQueue() const;
-    std::shared_ptr<std::queue<std::string>> getHighPriorityQueue() const;
+
     // std::shared_ptr<std::queue<json>> getResultLpQueue() const;
     // std::shared_ptr<std::queue<json>> getResultHpQueue() const;
     // std::shared_ptr<std::queue<json>> getLowPriorityQueue() const;
@@ -145,8 +156,20 @@ public:
     MonitoringPoint* getMonitoringPoint() const;
     MonitoringThread* getMonitoringThread() const;
     std::thread monitoring_thread;
-    std::shared_ptr<std::queue<std::string>> getResultLpQueue() const;
-    std::shared_ptr<std::queue<std::string>> getResultHpQueue() const;
+
+
+    /////////////////////////////////////////
+    std::shared_ptr<ThreadSafeQueue<std::string>> getLowPriorityQueue() const;
+    std::shared_ptr<ThreadSafeQueue<std::string>> getHighPriorityQueue() const;
+    std::shared_ptr<ThreadSafeQueue<std::string>> getResultLpQueue() const;
+    std::shared_ptr<ThreadSafeQueue<std::string>> getResultHpQueue() const;
+
+    // std::shared_ptr<std::queue<std::string>> getLowPriorityQueue() const;
+    // std::shared_ptr<std::queue<std::string>> getHighPriorityQueue() const;
+    // std::shared_ptr<std::queue<std::string>> getResultLpQueue() const;
+    // std::shared_ptr<std::queue<std::string>> getResultHpQueue() const;
+    /////////////////////////////////////////
+
  
     // Getters for result sockets
     std::string get_result_lp_socket() const { return result_lp_socket; }

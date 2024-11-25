@@ -20,6 +20,8 @@
 #include "WorkerLogger.h"
 #include "MonitoringPoint.h"
 
+#include "ThreadSafeQueue.h"
+
 using json = nlohmann::json;
 
 class WorkerThread {
@@ -33,8 +35,12 @@ class WorkerThread {
     std::string fullname;
     std::string globalname;
     WorkerLogger* logger;
-    std::shared_ptr<std::queue<std::string>> low_priority_queue;
-    std::shared_ptr<std::queue<std::string>> high_priority_queue;
+
+    //////////////////////
+    std::shared_ptr<ThreadSafeQueue<std::string>> low_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::string>> high_priority_queue;
+    /////////////////////
+
     MonitoringPoint* monitoringpoint;
 
     std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
