@@ -8,13 +8,13 @@
 #include <string>
 #include "json.hpp"
 #include <zmq.hpp>
+#include <spdlog/spdlog.h>
 #include <MonitoringPoint.h>
 
 class MonitoringPoint; // Forward declaration
 
 
 class MonitoringThread {  
-
     std::thread thread;  // The monitoring thread
     std::atomic<bool> stop_event;  // Atomic flag to stop the thread
     zmq::socket_t& socket_monitoring;  // Reference to the ZMQ socket for sending data

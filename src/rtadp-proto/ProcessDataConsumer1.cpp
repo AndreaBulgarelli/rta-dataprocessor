@@ -14,9 +14,14 @@ void main_function(const std::string& json_file_path, const std::string& consume
 
         // Start the supervisor
         supervisor_instance->start();
+        
+        spdlog::error("ProcessDataConsumer1: START CONCLUSO, ENTRO NEL DISTRUTTORE");
 
         delete supervisor_instance;
-    } catch (const std::exception& e) {
+
+        spdlog::error("ProcessDataConsumer1: FINITO BLOCCO TRY");
+    } 
+    catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
 }

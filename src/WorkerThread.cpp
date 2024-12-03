@@ -59,6 +59,7 @@ void WorkerThread::set_processdata(int processdata1) {
 //////////////////////////////////////////////////
 void WorkerThread::run() {
     start_timer(1);
+
     while (!_stop_event) {
         // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         if (processdata == 1 && tokenreading == 0) {
@@ -83,56 +84,93 @@ void WorkerThread::run() {
                     high_priority_queue->pop();
                     manager->change_token_reading();
                     process_data(high_priority_data, 1);
-                } else {
+                } 
+                else {
                     // Process low-priority queue if high-priority queue is empty
                     if (!low_priority_queue->empty()) {
                         auto low_priority_data = low_priority_queue->front();
                         low_priority_queue->pop();
                         manager->change_token_reading();
                         process_data(low_priority_data, 0);
-                    } else {
+                    } 
+                    else {
                         status = 2; // waiting for new data
                     }
                 }
-            } catch (const std::exception& e) {
+            } 
+            catch (const std::exception& e) {
                 spdlog::warn("Exception caught in WorkerThread run: {}", e.what());
 
                 // Rilancia l'eccezione dopo averla loggata
-                throw;
+                // throw;
             }
-        } else {
+        } 
+        else {
             if (tokenreading != 0 && status != 4) {
                 status = 4; // waiting for reading from queue
             }
         }
     }
+    
+    spdlog::error("WorkerThread::run: FUORI DAL WHILE (STOP EVENT = TRUE)");
+    
+    // stop();
 
-    if (internal_thread && internal_thread->joinable()) {
-        internal_thread->detach();
-    }
-    spdlog::info("WorkerThread stop {}", globalname);
-    logger->system("WorkerThread stop", globalname);
+    // if (internal_thread && internal_thread->joinable()) {
+    // internal_thread->detach();
+    // }
+
+    spdlog::info("{} WorkerThread:run stop ", globalname);
+    logger->system("WorkerThread:run stop", globalname);
 }
 
 //////////////////////////////////////////////////
 // Destructor
 WorkerThread::~WorkerThread(){
-    if (internal_thread && internal_thread->joinable()) {
-        internal_thread->join();
+    // Proteggi l'accesso a `worker`
+    {
+        std::lock_guard<std::mutex> lock(stop_worker_mutex);
+        if (worker) {
+            spdlog::warn("Deleting worker in WorkerThread {}", name);
+            delete worker;
+            worker = nullptr; // Prevenire doppi delete
+        }
     }
+
+    if (!_stop_event) {
+        stop();
+    }
+
+    /* if (internal_thread && internal_thread->joinable()) {
+        internal_thread->join();
+    } */
 }
 
 //////////////////////////////////////////////////
 void WorkerThread::stop() {
+    spdlog::error("WorkerThread::stop: ENTRO NELLA FUNZIONE");
+
+    if (_stop_event) {
+        spdlog::warn("WorkerThread::stop: Già fermato");
+        return;
+    }
+
     _stop_event = true;
+
+    // Notifica tutti i thread che stanno aspettando sulle code
+    low_priority_queue->notify_all();
+    high_priority_queue->notify_all();
 
     // Unisci tutti i thread prima di terminare
     if (internal_thread && internal_thread->joinable()) {
         internal_thread->join();
     }
 
-    delete worker;
-    status = 16; // stop
+    if (timer->joinable()) {
+        timer->join();
+    }
+
+    status = 16; // Thread is terminated
 }
 //////////////////////////////////////////////////
 
@@ -221,22 +259,7 @@ void WorkerThread::process_data(const std::string& data, int priority) {
     auto dataresult = worker->processData(data, priority);
     auto dataresult_string = dataresult["data"].get<std::string>();     
 
-    // DEBUG
-    /*
-    std::cout << "\n DATARESULT: " << dataresult << std::endl;
-    std::cout << "\n DATARESULTDATA: " << dataresult["data"].get<std::string>() << std::endl;
-
-     if (dataresult["data"].is_string()) {
-        spdlog::warn("DATARESULTDATA IS STRING");
-    }
-    else {
-        spdlog::warn("DATARESULTDATA IS NOT STRING");
-    } 
-    */
-
     if (!dataresult_string.empty() && tokenresult == 0) {
-        // spdlog::warn("DENTRO IL CONTROLLO IF: DATARESULT != EMPTY");
-
         if (priority == 0) {
             spdlog::warn("WorkerThread::process_data: LPQUEUE SIZE: {}", manager->getResultLpQueue()->size());
             spdlog::warn("WorkerThread::process_data: LPQUEUE EMPTY: {}", manager->getResultLpQueue()->empty());

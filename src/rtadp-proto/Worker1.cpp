@@ -86,7 +86,7 @@ nlohmann::json Worker1::processData(const nlohmann::json& data, int priority) {
         std::cout << "PROCESSO STRINGHE" << std::endl;
         std::string str_data = data.get<std::string>();
         result["data"] = str_data;
-        std::cout << "\n Processed string data: " << str_data << std::endl;
+        std::cout << "\nProcessed string data: " << str_data << std::endl;
     }
 
     result["priority"] = priority;

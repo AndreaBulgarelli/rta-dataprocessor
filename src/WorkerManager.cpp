@@ -182,7 +182,6 @@ void WorkerManager::change_token_results() {
     std::lock_guard<std::mutex> lock(*tokenresultslock);
 
     for (auto& worker : worker_threads) {
-
         int token_result = worker->get_tokenresult();
         token_result = (token_result - 1 + num_workers) % num_workers; // Fix the circular decrement
         worker->set_tokenresult(token_result);
@@ -268,8 +267,9 @@ void WorkerManager::change_status() {
 
 void WorkerManager::start_service_threads() {
     monitoringpoint = new MonitoringPoint(this);
-    monitoringthread = new MonitoringThread(*socket_monitoring, *monitoringpoint);  // Create MonitoringThread instance
-    monitoring_thread = std::thread(&MonitoringThread::run, monitoringthread);  // Start the thread with run method
+    monitoring_thread = new MonitoringThread(*socket_monitoring, *monitoringpoint);  // Create MonitoringThread instance
+    // monitoring_thread = std::thread(&MonitoringThread::run, monitoringthread);  // Start the thread with run method
+    monitoring_thread->start();
     std::cout << "Service thread started" << std::endl;
 }
 
@@ -281,14 +281,14 @@ void WorkerManager::start_worker_threads(int num_threads) {
         spdlog::warn("WARNING! It is not possible to create more than {} threads", max_workers);
         logger->warning(fmt::format("WARNING! It is not possible to create more than {} threads", max_workers), globalname);
     }
-    num_workers = num_threads;
 
+    num_workers = num_threads;
     spdlog::error("WORKERMANAGER: NUM_WORKERS{}", num_workers);
 
-    for (int i = 0; i<num_workers; ++i) {
-        WorkerBase* worker_base_prt = new WorkerBase();
-        auto worker = std::make_shared<WorkerThread>(i, this, std::to_string(i), worker_base_prt);
-        //worker->run();
+    for (int i = 0; i < num_workers; ++i) {
+        WorkerBase* worker_base_ptr = new WorkerBase();
+        auto worker = std::make_shared<WorkerThread>(i, this, std::to_string(i), worker_base_ptr);
+        // worker->run();
         worker_threads.push_back(worker);
     }
 }
@@ -316,7 +316,7 @@ void WorkerManager::run() {
     supervisor->send_info(1, status, fullname, 1, "Low");
 
     try {
-        while (!continueall) {
+        while (!continueall) {      // Might want to check _stop_event instead
             // std::this_thread::sleep_for(std::chrono::seconds(1)); // To avoid 100% CPU consumption
 
             // Check the status of the workers
@@ -340,9 +340,10 @@ void WorkerManager::run() {
 
         spdlog::info("Manager stop {}", globalname);
         logger->system("Manager stop", globalname);
-    } catch (const std::exception& e) {
-        spdlog::error("Exception caught: {}", e.what());
-        logger->system(fmt::format("Exception caught: {}", e.what()), globalname);
+    } 
+    catch (const std::exception& e) {
+        spdlog::error("AAAAAAAAAA Exception caught: {}", e.what());
+        logger->system(fmt::format("AAAAAAAAAAAAA Exception caught: {}", e.what()), globalname);
         stop_internalthreads();
         continueall = false;
     }
@@ -362,31 +363,73 @@ void WorkerManager::clean_queue() {
     logger->system("End cleaning queues", globalname);
 }
 
-//////////////////////////////////////////////////
+//////////////////////////////////////////
 // Function to stop the manager
 void WorkerManager::stop(bool fast) {
-    // Chiama stop su ogni WorkerThread per fermarli ordinatamente
-    for (auto& t : worker_threads) {
-        t->stop();
-    }
+    spdlog::error("WorkerManager::stop: ENTRO NELLA FUNZIONE");
 
     _stop_event = true;
+
+    // Notifica tutti i thread che stanno aspettando sulle code
+    low_priority_queue->notify_all();
+    high_priority_queue->notify_all();
+    result_lp_queue->notify_all();
+    result_hp_queue->notify_all();
+
+    if (worker_thread.joinable()) {
+        spdlog::error("JOIN DI worker_thread");
+
+        worker_thread.join();
+    }
+
+    // Chiama stop su ogni WorkerThread per fermarli ordinatamente
+    for (auto& t : worker_threads) {
+        if (t) {
+            spdlog::warn("WorkerManager::stop: Stopping worker thread...");
+            t->stop();
+            spdlog::warn("WorkerManager::stop: Worker thread stopped.");
+        }
+        else {
+            spdlog::warn("WorkerManager::stop: Worker thread is already nullptr.");
+        }
+    }
+
+    // _stop_event = true;
     stop_internalthreads();
     status = "End";
 }
-//////////////////////////////////////////////////
 
 void WorkerManager::stop_internalthreads() {
+    spdlog::error("WorkerManager::stop_internalthreads: ENTRO NELLA FUNZIONE");
+
+    _stop_event = true;
+
     spdlog::info("Stopping Manager internal threads...");
     logger->system("Stopping Manager internal threads...", globalname);
 
-    if (monitoring_thread.joinable()) {
+
+    // Se monitoring_thread è stato creato dinamicamente
+    if (monitoring_thread) {
+        spdlog::warn("WorkerManager::stop_internalthreads(): Deleting monitoring thread...");
+        delete monitoring_thread;  // Dealloca la memoria
+        monitoring_thread = nullptr;  // Imposta il puntatore a nullptr per evitare dangling pointer
+    }
+    else {
+        spdlog::warn("WorkerManager::stop_internalthreads(): Monitoring thread is nullptr!");
+    }
+
+    /* if (monitoring_thread.joinable()) {
+        spdlog::warn("WorkerManager::stop_internalthreads(): Joining monitoring thread...");
         monitoring_thread.join(); // Use join instead of detach for proper cleanup
     }
+    else {
+        spdlog::warn("WorkerManager::stop_internalthreads(): Monitoring thread is not joinable!");
+    }   */
     
     spdlog::info("All Manager internal threads terminated.");
     logger->system("All Manager internal threads terminated.", globalname);
 }
+//////////////////////////////////////////
 
 // Function to configure workers
 void WorkerManager::configworkers(const json& configuration) {
@@ -402,25 +445,31 @@ void WorkerManager::clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::stri
     if (!queue->empty()) {
         spdlog::info("   - {} size {}", queue_name, queue->size());
         logger->system(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);
+
         while (!queue->empty()) {
             queue->pop();
         }
+
         spdlog::info("   - {} empty", queue_name);
         logger->system(fmt::format("   - {} empty", queue_name), globalname);
     }
 }
 
+// Not used
 void WorkerManager::close_queue(std::shared_ptr<std::queue<std::string>>& queue, const std::string& queue_name) {
     try {
         spdlog::info("   - {} size {}", queue_name, queue->size());
         logger->system(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);
+
         while (!queue->empty()) {
             queue->pop();
         }
+
         queue.reset();
         spdlog::info("   - {} empty", queue_name);
         logger->system(fmt::format("   - {} empty", queue_name), globalname);
-    } catch (const std::exception& e) {
+    } 
+    catch (const std::exception& e) {
         spdlog::error("ERROR in worker stop {} cleaning: {}", queue_name, e.what());
         logger->error(fmt::format("ERROR in worker stop {} cleaning: {}", queue_name, e.what()), globalname);
     }

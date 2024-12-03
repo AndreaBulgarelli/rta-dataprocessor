@@ -11,7 +11,9 @@ void WorkerManager1::start_worker_threads(int num_threads) {
     
     // Creazione dei thread dei worker
     for (int i = 0; i < num_threads; ++i) {
-        WorkerBase* processor = new Worker1(); // Il tipo era auto
+
+        // auto processor = std::make_shared<Worker1>();
+        WorkerBase* processor = new Worker1(); 
 
         const auto name_workers = getSupervisor()->name_workers;
 

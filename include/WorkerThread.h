@@ -58,6 +58,8 @@ class WorkerThread {
 
     std::unique_ptr<std::thread> internal_thread;
 
+    std::mutex stop_worker_mutex;
+
     void start_timer(int interval);
     void workerop(int interval);
     void process_data(const std::string& data, int priority);

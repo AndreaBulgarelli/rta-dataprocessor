@@ -33,6 +33,13 @@ class Supervisor {
 
     std::shared_ptr<std::mutex> sendresultslock;
 
+
+    std::condition_variable cv;
+    std::mutex cv_mtx;
+
+    bool shutdown_over = false;
+
+
 public:
     std::vector<std::string> worker_names;
 
@@ -146,7 +153,10 @@ public:
     std::string name;
     std::string fullname;
     std::string globalname;
-    bool continueall;
+
+    std::atomic<bool> continueall;
+    // bool continueall;
+    
     int pid;
     zmq::context_t context;
     zmq::socket_t *socket_lp_data;

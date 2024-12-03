@@ -12,6 +12,8 @@ private:
     mutable std::mutex mtx;
     std::condition_variable condvar;
 
+    bool _stop = false; // Flag per indicare l'arresto
+
 public:
     ThreadSafeQueue() = default;
     ~ThreadSafeQueue() = default;
@@ -22,23 +24,38 @@ public:
         condvar.notify_one();
     }
 
+    T front() {
+        std::unique_lock<std::mutex> lock(mtx);
+        condvar.wait(lock, [this] { return _stop || !queue.empty(); });
+
+        if (_stop) {  // if (_stop && queue.empty()) 
+            throw std::runtime_error("ThreadSafeQueue stopped");
+        }
+
+        return queue.front();
+    }
+
     T get() {
         std::unique_lock<std::mutex> lock(mtx);
-        condvar.wait(lock, [this] { return !queue.empty(); });
+        condvar.wait(lock, [this] { return _stop || !queue.empty(); });
+
+        if (_stop) {  // if (_stop && queue.empty()) 
+            throw std::runtime_error("ThreadSafeQueue stopped");
+        }
+
         T value = queue.front();
         queue.pop();
         return value;
     }
 
-    T front() {
-        std::unique_lock<std::mutex> lock(mtx);
-        condvar.wait(lock, [this] { return !queue.empty(); });
-        return queue.front();
-    }
-
     void pop() {
         std::unique_lock<std::mutex> lock(mtx);
-        condvar.wait(lock, [this] { return !queue.empty(); });
+        condvar.wait(lock, [this] { return _stop || !queue.empty(); });
+
+        if (_stop) {  // if (_stop && queue.empty()) 
+            return; // Esce dalla funzione e termina l'elaborazione
+        }
+
         queue.pop();
     }
 
@@ -51,6 +68,13 @@ public:
         std::lock_guard<std::mutex> lock(mtx);
         return queue.size();
     }
+
+    void notify_all() {
+        std::lock_guard<std::mutex> lock(mtx);
+        _stop = true;
+        condvar.notify_all();
+    }
+
 };
 
 #endif // THREADSAFEQUEUE_H

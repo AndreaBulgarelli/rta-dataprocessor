@@ -25,6 +25,11 @@ Supervisor::Supervisor(std::string config_file, std::string name)
     context = zmq::context_t(1);
 
     try {
+
+
+        int timeout = 20000; // Timeout di 1 secondo
+
+
         // Retrieve and log configuration
         processingtype = config["processing_type"].get<std::string>();
         dataflowtype = config["dataflow_type"].get<std::string>();
@@ -43,7 +48,8 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
             socket_hp_data = new zmq::socket_t(context, ZMQ_PULL);
             socket_hp_data->bind(config["data_hp_socket"].get<std::string>());
-        } else if (datasockettype == "pubsub") {
+        } 
+        else if (datasockettype == "pubsub") {
             socket_lp_data = new zmq::socket_t(context, ZMQ_SUB);
             socket_lp_data->connect(config["data_lp_socket"].get<std::string>());
             socket_lp_data->setsockopt(ZMQ_SUBSCRIBE, "", 0);
@@ -51,9 +57,17 @@ Supervisor::Supervisor(std::string config_file, std::string name)
             socket_hp_data = new zmq::socket_t(context, ZMQ_SUB);
             socket_hp_data->connect(config["data_hp_socket"].get<std::string>());
             socket_hp_data->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-        } else if (datasockettype == "custom") {
+
+            /////////////////////////////////
+            socket_lp_data->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+            socket_hp_data->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+            /////////////////////////////////
+
+        } 
+        else if (datasockettype == "custom") {
             logger->system("Supervisor started with custom data receiver", globalname);
-        } else {
+        } 
+        else {
             throw std::invalid_argument("Config file: datasockettype must be pushpull or pubsub");
         }
 
@@ -62,12 +76,17 @@ Supervisor::Supervisor(std::string config_file, std::string name)
         socket_command->connect(config["command_socket"].get<std::string>());
         socket_command->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
+        /////////////////////////////////
+        socket_command->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+        /////////////////////////////////
+
         socket_monitoring = new zmq::socket_t(context, ZMQ_PUSH);
         socket_monitoring->connect(config["monitoring_socket"].get<std::string>());
 
         socket_lp_result.resize(100, nullptr);
         socket_hp_result.resize(100, nullptr);
-    } catch (const std::exception &e) {
+    } 
+    catch (const std::exception &e) {
         // Handle any other unexpected exceptions
         std::cerr << "ERROR: An unexpected error occurred: " << e.what() << std::endl;
         logger->warning("ERROR: An unexpected error occurred: " + std::string(e.what()), globalname);
@@ -83,8 +102,12 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
     // Set up signal handlers
     try {
-        signal(SIGTERM, handle_signals);
-        signal(SIGINT, handle_signals);
+        if (std::signal(SIGTERM, handle_signals) == SIG_ERR) {
+            throw std::runtime_error("Failed to set SIGTERM handler");
+        }
+        if (std::signal(SIGINT, handle_signals) == SIG_ERR) {
+            throw std::runtime_error("Failed to set SIGINT handler");
+        }
     } catch (const std::exception &e) {
         std::cerr << "WARNING! Signal only works in main thread. It is not possible to set up signal handlers!" << std::endl;
         logger->warning("WARNING! Signal only works in main thread. It is not possible to set up signal handlers!", globalname);
@@ -97,14 +120,138 @@ Supervisor::Supervisor(std::string config_file, std::string name)
     logger->system(globalname + " started", globalname);
 }
 
+//////////////////////////////////
 // Destructor to clean up resources
 Supervisor::~Supervisor() {
-    delete socket_lp_data;
-    delete socket_hp_data;
-    delete socket_command;
-    delete socket_monitoring;
-    delete logger;
+    while (!shutdown_over) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    spdlog::error("ENTRO NEL DISTRUTTORE DEL SUPERVISOR");
+
+    if (lp_data_thread.joinable()) {
+        spdlog::error("JOIN DI lp_data_thread");
+
+        lp_data_thread.join();
+    }
+
+    if (hp_data_thread.joinable()) {
+        spdlog::error("JOIN DI hp_data_thread");
+
+        hp_data_thread.join();
+    }
+
+    if (result_thread.joinable()) {
+        spdlog::error("JOIN DI result_thread");
+
+        result_thread.join();
+    }
+
+    if (socket_command) {
+        spdlog::error("AAAAA Closing ZMQ socket (socket_command)...");
+
+        try {
+            socket_command->close(); // Chiude il socket
+        }
+        catch (const zmq::error_t& e) {
+            spdlog::error("Error while closing socket_command: {}", e.what());
+        }
+        delete socket_command;     // Libera la memoria
+        socket_command = nullptr;  // Evita puntatori dangling
+    }
+    if (socket_lp_data) {
+        spdlog::error("AAAAA Closing socket_lp_data...");
+
+        try {
+            socket_lp_data->close(); 
+        }
+        catch (const zmq::error_t& e) {
+            spdlog::error("Error while closing socket_lp_data: {}", e.what());
+        }
+        delete socket_lp_data;
+        socket_lp_data = nullptr;
+    }
+    if (socket_hp_data) {
+        spdlog::error("AAAAA Closing socket_hp_data...");
+
+        try {
+            socket_hp_data->close();
+        }
+        catch (const zmq::error_t& e) {
+            spdlog::error("Error while closing socket_hp_data: {}", e.what());
+        }
+        delete socket_hp_data;
+        socket_hp_data = nullptr;
+    }
+    if (!socket_lp_result.empty()) {
+        spdlog::error("AAAAA Closing socket_lp_result...");
+        for (auto* socket : socket_lp_result) {
+            if (socket) {
+                try {
+                    socket->close();  // Chiudi il socket
+                }
+                catch (const zmq::error_t& e) {
+                    spdlog::error("Error while closing socket: {}", e.what());
+                }
+                delete socket; // Dealloca il puntatore
+                socket = nullptr;
+            }
+        }
+        socket_lp_result.clear(); // Svuota il vettore
+    }
+    if (!socket_hp_result.empty()) {
+        spdlog::error("AAAAA Closing socket_hp_result...");
+        for (auto* socket : socket_hp_result) {
+            if (socket) {
+                try {
+                    socket->close();  // Chiudi il socket
+                }
+                catch (const zmq::error_t& e) {
+                    spdlog::error("Error while closing socket: {}", e.what());
+                }
+                delete socket; // Dealloca il puntatore
+                socket = nullptr;
+            }
+        }
+        socket_hp_result.clear(); // Svuota il vettore
+    }
+    if (socket_monitoring) {
+        spdlog::error("AAAAA Closing socket_monitoring...");
+
+        try {
+            socket_monitoring->close();
+        }
+        catch (const zmq::error_t& e) {
+            spdlog::error("Error while closing socket_monitoring: {}", e.what());
+        }
+        delete socket_monitoring;
+        socket_monitoring = nullptr;
+    }
+
+    // Chiudi il contesto ZMQ (prima devono essere chiusi tutti i zmq::socket)
+    spdlog::error("AAAAA zmq_ctx_shutdown...");
+    zmq_ctx_shutdown(context.handle()); // Fermare i thread associati al contesto
+
+    try {
+        spdlog::error("AAAAA Closing ZMQ context...");
+
+        context.close(); // Chiude esplicitamente il contesto
+    }
+    catch (const zmq::error_t& e) {
+        spdlog::error("Error while closing ZMQ context: {}", e.what());
+    }
+
+    if (logger) {
+        spdlog::error("AAAAA Deleting logger...");
+
+        // logger->close()
+        delete logger;
+        logger = nullptr;
+    }
+
+    spdlog::error("DISTRUTTORE SUPERVISOR CONCLUSO");
 }
+//////////////////////////////////
 
 // Static method to set the current instance
 void Supervisor::set_instance(Supervisor *instance) {
@@ -186,6 +333,7 @@ void Supervisor::setup_result_channel(WorkerManager *manager, int indexmanager) 
     socket_lp_result[indexmanager] = nullptr;
     socket_hp_result[indexmanager] = nullptr;
     //context = zmq::context_t(1);
+
     if (manager->get_result_lp_socket() != "none") {
         if (manager->get_result_socket_type() == "pushpull") {
             socket_lp_result[indexmanager] = new zmq::socket_t(context, ZMQ_PUSH);
@@ -243,6 +391,7 @@ void Supervisor::start() {
     start_workers();
     start_service_threads();
 
+    // Era:
     // start_service_threads();
     // start_managers();
     // start_workers();
@@ -250,33 +399,41 @@ void Supervisor::start() {
     status = "Waiting";
     send_info(1, status, fullname, 1, "Low");
 
-    try {
+    while (continueall) {
+        listen_for_commands();
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // To avoid 100% CPU
+    }
+
+    /*try {
         while (continueall) {
             listen_for_commands();
             std::this_thread::sleep_for(std::chrono::seconds(1)); // To avoid 100% CPU
         }
     } catch (const std::exception &e) {
-        std::cerr << "Exception caught: " << e.what() << std::endl;
+        std::cerr << "BBBBBBBBBBBBBBB Exception caught: " << e.what() << std::endl;
         command_shutdown();
-    }
+    }*/
 }
 //////////////////////////////////////
 
 // Static function to handle signals
 void Supervisor::handle_signals(int signum) {
     Supervisor* instance = Supervisor::get_instance();
+
     if (instance) {
         if (signum == SIGTERM) {
-            std::cerr << "SIGTERM received. Terminating with cleaned shutdown." << std::endl;
-            instance->logger->system("SIGTERM received. Terminating with cleaned shutdown", instance->globalname);
+            std::cerr << "SIGTERM received in main thread. Terminating with cleaned shutdown." << std::endl;
+            instance->logger->system("SIGTERM received in main thread. Terminating with cleaned shutdown", instance->globalname);
             instance->command_cleanedshutdown();
-        } else if (signum == SIGINT) {
-            std::cerr << "SIGINT received. Terminating with shutdown." << std::endl;
-            instance->logger->system("SIGINT received. Terminating with shutdown", instance->globalname);
+        } 
+        else if (signum == SIGINT) {
+            std::cerr << "SIGINT received in main thread. Terminating with shutdown." << std::endl;
+            instance->logger->system("SIGINT received in main thread. Terminating with shutdown", instance->globalname);
             instance->command_shutdown();
-        } else {
-            std::cerr << "Received signal " << signum << ". Terminating." << std::endl;
-            instance->logger->system("Received signal " + std::to_string(signum) + ". Terminating", instance->globalname);
+        } 
+        else {
+            std::cerr << "Received signal " << signum << "in main thread. Terminating." << std::endl;
+            instance->logger->system("Received signal " + std::to_string(signum) + "in main thread. Terminating", instance->globalname);
             instance->command_shutdown();
         }
     }
@@ -453,12 +610,14 @@ void Supervisor::listen_for_lp_data() {
         if (!stopdata) {
             zmq::message_t data;
             socket_lp_data->recv(data);
+
             for (auto &manager : manager_workers) {
                 json decodeddata = json::parse(data.to_string());
                 manager->getLowPriorityQueue()->push(decodeddata);
             }
         }
     }
+
     std::cout << "End listen_for_lp_data" << std::endl;
     logger->system("End listen_for_lp_data", globalname);
 }
@@ -469,12 +628,14 @@ void Supervisor::listen_for_hp_data() {
         if (!stopdata) {
             zmq::message_t data;
             socket_hp_data->recv(data);
+
             for (auto &manager : manager_workers) {
                 json decodeddata = json::parse(data.to_string());
                 manager->getHighPriorityQueue()->push(decodeddata);
             }
         }
     }
+
     std::cout << "End listen_for_hp_data" << std::endl;
     logger->system("End listen_for_hp_data", globalname);
 }
@@ -486,11 +647,13 @@ void Supervisor::listen_for_lp_string() {
             zmq::message_t data;
             socket_lp_data->recv(data);
             std::string data_str(static_cast<char*>(data.data()), data.size());
+
             for (auto &manager : manager_workers) {
                 manager->getLowPriorityQueue()->push(data_str);
             }
         }
     }
+
     std::cout << "End listen_for_lp_string" << std::endl;
     logger->system("End listen_for_lp_string", globalname);
 }
@@ -502,11 +665,13 @@ void Supervisor::listen_for_hp_string() {
             zmq::message_t data;
             socket_hp_data->recv(data);
             std::string data_str(static_cast<char*>(data.data()), data.size());
+
             for (auto &manager : manager_workers) {
                 manager->getHighPriorityQueue()->push(data_str);
             }
         }
     }
+
     std::cout << "End listen_for_hp_string" << std::endl;
     logger->system("End listen_for_hp_string", globalname);
 }
@@ -518,6 +683,7 @@ void Supervisor::listen_for_lp_file() {
             zmq::message_t filename_msg;
             socket_lp_data->recv(filename_msg);
             std::string filename(static_cast<char*>(filename_msg.data()), filename_msg.size());
+
             for (auto &manager : manager_workers) {
                 auto [data, size] = open_file(filename);
                 for (int i = 0; i < size; i++) {
@@ -526,6 +692,7 @@ void Supervisor::listen_for_lp_file() {
             }
         }
     }
+
     std::cout << "End listen_for_lp_file" << std::endl;
     logger->system("End listen_for_lp_file", globalname);
 }
@@ -566,6 +733,7 @@ void Supervisor::listen_for_hp_file() {
             zmq::message_t filename_msg;
             socket_hp_data->recv(filename_msg);
             std::string filename(static_cast<char*>(filename_msg.data()), filename_msg.size());
+
             for (auto &manager : manager_workers) {
                 auto [data, size] = open_file(filename);
                 for (int i = 0; i < size; i++) {
@@ -574,11 +742,84 @@ void Supervisor::listen_for_hp_file() {
             }
         }
     }
+
     std::cout << "End listen_for_hp_file" << std::endl;
     logger->system("End listen_for_hp_file", globalname);
 }
 
+///////////////////////////////////
+void Supervisor::listen_for_commands() {
+    while (continueall) {
+        try {
+            std::cout << "Waiting for commands..." << std::endl;
+            logger->system("Waiting for commands...", globalname);
+
+            zmq::message_t command_msg;
+
+            // Controlla se il socket è valido
+            if (!socket_command) {
+                spdlog::error("Socket is null or invalid in listen_for_commands");
+                break; // Esci dal ciclo se il socket è invalido
+            }
+
+            // Usa un timeout per evitare blocchi infiniti
+            zmq::recv_flags flags = zmq::recv_flags::none;
+
+            // Riceve il messaggio e controlla se c'è un errore
+            auto result = socket_command->recv(command_msg, flags);
+
+            if (!result) {
+                // Se non è stato ricevuto nulla, gestisci l'errore (timeout o nessun messaggio)
+                int err_code = zmq_errno();
+
+                if (err_code == EAGAIN) {
+                    // Non ci sono messaggi da ricevere, procedi senza errore
+                    spdlog::warn("No command received within the timeout period (EAGAIN)");
+                }
+                else {
+                    // Gestisci altri errori (se presenti)
+                    spdlog::error("ZMQ recv error: {}", zmq_strerror(err_code));
+                    // break; // Esci dal ciclo se c'è un errore grave
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Dorme per evitare carico CPU
+                continue; // Continua a cercare comandi
+            }
+
+            spdlog::warn("Supervisor::listen_for_command: COMMAND RECEIVED");
+
+            std::string command_str(static_cast<char*>(command_msg.data()), command_msg.size());
+
+            try {
+                json command = json::parse(command_str);
+                process_command(command);
+            }
+            catch (const json::parse_error& e) {
+                spdlog::error("JSON parse error: {}", e.what());
+                // Puoi decidere se ignorare questo errore o interrompere
+            }
+        }
+        catch (const zmq::error_t& e) {
+            spdlog::error("ZMQ exception in listen_for_commands: {}", e.what());
+            // break; // Esci dal ciclo su errore di ZMQ
+        }
+        /* catch (const std::exception& e) {
+            spdlog::error("Exception in Supervisor::listen_for_commands: {}", e.what());
+            throw;
+            //break; // Esci dal ciclo su altre eccezioni
+        }*/
+
+        // std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Evita un uso intensivo della CPU
+    }
+
+    spdlog::error("Supervisor::listen_for_command: FUORI DAL WHILE (continueall = FALSE)");
+
+    std::cout << "End listen_for_commands" << std::endl;
+    logger->system("End listen_for_commands", globalname);
+}
+///////////////////////////////////
+
 // Listen for commands
+/* 
 void Supervisor::listen_for_commands() {
     while (continueall) {
         std::cout << "Waiting for commands..." << std::endl;
@@ -590,9 +831,11 @@ void Supervisor::listen_for_commands() {
         json command = json::parse(command_str);
         process_command(command);
     }
+
     std::cout << "End listen_for_commands" << std::endl;
     logger->system("End listen_for_commands", globalname);
 }
+*/
 
 // Shutdown command
 void Supervisor::command_shutdown() {
@@ -642,6 +885,7 @@ void Supervisor::command_cleanedshutdown() {
 void Supervisor::command_reset() {
     if (status == "Processing" || status == "Waiting") {
         command_stop();
+
         for (auto &manager : manager_workers) {
             std::cout << "Trying to reset " << manager->get_globalname() << "..." << std::endl;
             logger->system("Trying to reset " + manager->get_globalname() + "...", globalname);
@@ -655,6 +899,7 @@ void Supervisor::command_reset() {
                            + std::to_string(manager->getResultLpQueue()->size()) + " " 
                            + std::to_string(manager->getResultHpQueue()->size()), globalname);
         }
+
         status = "Waiting";
         send_info(1, status, fullname, 1, "Low");
     }
@@ -719,7 +964,7 @@ void Supervisor::process_command(const json &command) {
 
     if (type_value == 0) { // command
         if (pidtarget == name || pidtarget == "all" || pidtarget == "*") {
-            std::cout << "Received command: " << command << std::endl;
+            std::cout << "\nReceived command: " << command << std::endl;
             if (subtype_value == "shutdown") {
                 command_shutdown();
             } else if (subtype_value == "cleanedshutdown") {
@@ -796,8 +1041,13 @@ void Supervisor::send_info(int level, const std::string &message, const std::str
     socket_monitoring->send(zmq::buffer(msg.dump()));
 }
 
+//////////////////////////////////////////////////
 // Stop all threads and processes
 void Supervisor::stop_all(bool fast) {
+    spdlog::error("Supervisor::stop_all: ENTRO NELLA FUNZIONE");
+
+    continueall = false;
+
     std::cout << "Stopping all workers and managers..." << std::endl;
     logger->system("Stopping all workers and managers...", globalname);
 
@@ -808,8 +1058,11 @@ void Supervisor::stop_all(bool fast) {
         manager->stop(fast);
     }
 
-    continueall = false;
+    // continueall = false;
+
+    shutdown_over = true;
 
     std::cout << "All Supervisor workers and managers and internal threads terminated." << std::endl;
     logger->system("All Supervisor workers and managers and internal threads terminated.", globalname);
 }
+//////////////////////////////////////////////////

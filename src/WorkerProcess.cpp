@@ -35,9 +35,14 @@ WorkerProcess::~WorkerProcess() {
 
 void WorkerProcess::stop() {
     stop_event = true;
+
+    low_priority_queue->notify_all();
+    high_priority_queue->notify_all();
+
     if (timer_thread && timer_thread->joinable()) {
         timer_thread->join();
     }
+
     sleep(0.1);
 }
 
@@ -59,18 +64,21 @@ void WorkerProcess::run() {
                     std::string high_priority_data = high_priority_queue->front();
                     high_priority_queue->pop();
                     process_data(high_priority_data, 1);
-                } catch (const std::out_of_range&) {
+                } 
+                catch (const std::out_of_range&) {
                     try {
                         std::string low_priority_data = low_priority_queue->front();
                         low_priority_queue->pop();
                         process_data(low_priority_data, 0);
-                    } catch (const std::out_of_range&) {
+                    } 
+                    catch (const std::out_of_range&) {
                         manager->setWorkerStatus(worker_id, 2); // waiting for new data
                     }
                 }
             }
         }
-    } catch (const std::exception& e) {
+    } 
+    catch (const std::exception& e) {
         std::cerr << "An error occurred: " << e.what() << std::endl;
     }
 
@@ -112,7 +120,8 @@ void WorkerProcess::process_data(const nlohmann::json& data, int priority) {
     nlohmann::json dataresult;
     try {
         dataresult = worker->processData(data, priority);
-    } catch (const std::exception& e) {
+    } 
+    catch (const std::exception& e) {
         logger->critical(e.what(), globalname);
     }
 

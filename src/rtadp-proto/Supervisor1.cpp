@@ -11,8 +11,6 @@ Supervisor1::~Supervisor1() {
         delete m;
 }
     
-
-
 // Override the start_managers method
 void Supervisor1::start_managers() {
     int indexmanager = 0;

@@ -149,13 +149,17 @@ public:
 
     std::string getName() const;
 
-    // std::shared_ptr<std::queue<json>> getResultLpQueue() const;
+    // std::shared_ptr<std::queue<json>> 
+    // Queue() const;
     // std::shared_ptr<std::queue<json>> getResultHpQueue() const;
     // std::shared_ptr<std::queue<json>> getLowPriorityQueue() const;
     // std::shared_ptr<std::queue<json>> getHighPriorityQueue() const;
     MonitoringPoint* getMonitoringPoint() const;
     MonitoringThread* getMonitoringThread() const;
-    std::thread monitoring_thread;
+    
+    
+    // std::thread monitoring_thread;
+    MonitoringThread* monitoring_thread;
 
 
     /////////////////////////////////////////
@@ -183,7 +187,7 @@ public:
     std::string getStatus() const;
 
     std::vector<std::shared_ptr<WorkerThread>> worker_threads;
-    std::vector<std::thread> worker_threads_run;  // Vettore per i thread
+    std::vector<std::thread> worker_threads_run;  // Vettore per i thread (si può eliminare visto che non è usato)
 
 
     // Getter for stopdata
