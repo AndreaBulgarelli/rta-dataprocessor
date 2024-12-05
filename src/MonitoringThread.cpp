@@ -20,21 +20,11 @@ MonitoringThread::MonitoringThread(zmq::socket_t& socket_monitoring, MonitoringP
 
 // Destructor to stop the thread and clean up resources
 MonitoringThread::~MonitoringThread() {
-    spdlog::warn("MonitoringThread::~MonitoringThread: DENTRO IL DISTRUTTORE.");
-
     stop();
 
     if (thread.joinable()) {
-        spdlog::warn("MonitoringThread::~MonitoringThread: Joining monitoring thread...");
         thread.join(); // Use join instead of detach for proper cleanup
     }
-    else {
-        spdlog::warn("MonitoringThread::~MonitoringThread: Monitoring thread is not joinable!");
-    }
-
-    /* if (thread.joinable()) {
-        thread.join();
-    } */
 }
 
 // Starts the monitoring thread
@@ -43,8 +33,6 @@ void MonitoringThread::start() {
 }
 
 void MonitoringThread::stop() {
-    spdlog::error("MonitoringThread::stop: DENTRO LA FUNZIONE");
-
     stop_event = true;
 }
 
@@ -62,8 +50,6 @@ void MonitoringThread::run() {
 
         std::this_thread::sleep_for(std::chrono::seconds(1));  // Sleep for 1 second
     }
-
-    spdlog::error("MonitoringThread::run: FUORI DAL WHILE (stop_event = TRUE)");
 }
 
 // Sends monitoring data to a specific process target name

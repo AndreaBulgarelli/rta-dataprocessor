@@ -37,9 +37,6 @@ class Supervisor {
     std::condition_variable cv;
     std::mutex cv_mtx;
 
-    bool shutdown_over = false;
-
-
 public:
     std::vector<std::string> worker_names;
 

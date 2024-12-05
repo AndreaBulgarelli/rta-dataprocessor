@@ -309,7 +309,7 @@ void WorkerManager::start() {
 
 // Main run function
 void WorkerManager::run() {   
-	std::cout << "Start workerManager run" << std::endl;
+	std::cout << "Start WorkerManager run" << std::endl;
     start_service_threads();
 
     status = "Initialised";
@@ -366,7 +366,6 @@ void WorkerManager::clean_queue() {
 //////////////////////////////////////////
 // Function to stop the manager
 void WorkerManager::stop(bool fast) {
-    spdlog::error("WorkerManager::stop: ENTRO NELLA FUNZIONE");
 
     _stop_event = true;
 
@@ -385,12 +384,7 @@ void WorkerManager::stop(bool fast) {
     // Chiama stop su ogni WorkerThread per fermarli ordinatamente
     for (auto& t : worker_threads) {
         if (t) {
-            spdlog::warn("WorkerManager::stop: Stopping worker thread...");
             t->stop();
-            spdlog::warn("WorkerManager::stop: Worker thread stopped.");
-        }
-        else {
-            spdlog::warn("WorkerManager::stop: Worker thread is already nullptr.");
         }
     }
 
@@ -400,8 +394,6 @@ void WorkerManager::stop(bool fast) {
 }
 
 void WorkerManager::stop_internalthreads() {
-    spdlog::error("WorkerManager::stop_internalthreads: ENTRO NELLA FUNZIONE");
-
     _stop_event = true;
 
     spdlog::info("Stopping Manager internal threads...");
@@ -410,21 +402,9 @@ void WorkerManager::stop_internalthreads() {
 
     // Se monitoring_thread è stato creato dinamicamente
     if (monitoring_thread) {
-        spdlog::warn("WorkerManager::stop_internalthreads(): Deleting monitoring thread...");
         delete monitoring_thread;  // Dealloca la memoria
         monitoring_thread = nullptr;  // Imposta il puntatore a nullptr per evitare dangling pointer
     }
-    else {
-        spdlog::warn("WorkerManager::stop_internalthreads(): Monitoring thread is nullptr!");
-    }
-
-    /* if (monitoring_thread.joinable()) {
-        spdlog::warn("WorkerManager::stop_internalthreads(): Joining monitoring thread...");
-        monitoring_thread.join(); // Use join instead of detach for proper cleanup
-    }
-    else {
-        spdlog::warn("WorkerManager::stop_internalthreads(): Monitoring thread is not joinable!");
-    }   */
     
     spdlog::info("All Manager internal threads terminated.");
     logger->system("All Manager internal threads terminated.", globalname);

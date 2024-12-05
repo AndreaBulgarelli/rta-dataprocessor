@@ -39,8 +39,6 @@ Worker1::Worker1() : WorkerBase() {
 
 // Override the config method
 void Worker1::config(const nlohmann::json& configuration) {
-    spdlog::error("Worker1::config: CONFIG");
-
     WorkerBase::config(configuration);
 }
 
@@ -48,7 +46,6 @@ void Worker1::config(const nlohmann::json& configuration) {
 nlohmann::json Worker1::processData(const nlohmann::json& data, int priority) {
     nlohmann::json result;
     std::string dataflow_type = get_supervisor()->dataflowtype;
-    std::cout << "Worker1::processData: dataflow_type: " << dataflow_type << std::endl;
 
     if (dataflow_type == "binary") {
         // Assuming data contains binary data as a string
@@ -83,7 +80,6 @@ nlohmann::json Worker1::processData(const nlohmann::json& data, int priority) {
         std::cout << "Processed file: " << filename << std::endl;
     }
     else if (dataflow_type == "string") {
-        std::cout << "PROCESSO STRINGHE" << std::endl;
         std::string str_data = data.get<std::string>();
         result["data"] = str_data;
         std::cout << "\nProcessed string data: " << str_data << std::endl;
@@ -93,7 +89,7 @@ nlohmann::json Worker1::processData(const nlohmann::json& data, int priority) {
     return result;
 }
 ////////////////////////////////////////////
-// 
+
 // Helper function to generate random duration between 0 and 100 milliseconds
 double Worker1::random_duration() {
     std::random_device rd;

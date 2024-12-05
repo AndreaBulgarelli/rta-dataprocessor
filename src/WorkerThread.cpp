@@ -63,24 +63,10 @@ void WorkerThread::run() {
     while (!_stop_event) {
         // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         if (processdata == 1 && tokenreading == 0) {
-            // std::cout << "WORKERTHREAD RUN AAAAAAAAAAAAAAAAA" << std::endl;
             try {
-                //std::cout << 'BBBBBBBBBBBBBBBBB' << std::endl;
                 // Check and process high-priority queue first
                 if (!high_priority_queue->empty()) {
                     auto high_priority_data = high_priority_queue->front();
-
-                    // DEBUG
-                    if (typeid(high_priority_data) == typeid(std::string)) {
-                        spdlog::info("WorkerThread::run: high_priority_data is a string.");
-                    }
-                    else if (typeid(high_priority_data) == typeid(nlohmann::json)) {
-                        spdlog::info("WorkerThread::run: high_priority_data is a JSON object.");
-                    }
-                    else {
-                        spdlog::info("WorkerThread::run: high_priority_data is of unknown type: {}", typeid(high_priority_data).name());
-                    }
-
                     high_priority_queue->pop();
                     manager->change_token_reading();
                     process_data(high_priority_data, 1);
@@ -99,10 +85,8 @@ void WorkerThread::run() {
                 }
             } 
             catch (const std::exception& e) {
-                spdlog::warn("Exception caught in WorkerThread run: {}", e.what());
-
-                // Rilancia l'eccezione dopo averla loggata
-                // throw;
+                spdlog::error("Exception caught in WorkerThread run: {}", e.what());
+                throw;
             }
         } 
         else {
@@ -111,14 +95,6 @@ void WorkerThread::run() {
             }
         }
     }
-    
-    spdlog::error("WorkerThread::run: FUORI DAL WHILE (STOP EVENT = TRUE)");
-    
-    // stop();
-
-    // if (internal_thread && internal_thread->joinable()) {
-    // internal_thread->detach();
-    // }
 
     spdlog::info("{} WorkerThread:run stop ", globalname);
     logger->system("WorkerThread:run stop", globalname);
@@ -131,7 +107,6 @@ WorkerThread::~WorkerThread(){
     {
         std::lock_guard<std::mutex> lock(stop_worker_mutex);
         if (worker) {
-            spdlog::warn("Deleting worker in WorkerThread {}", name);
             delete worker;
             worker = nullptr; // Prevenire doppi delete
         }
@@ -141,27 +116,20 @@ WorkerThread::~WorkerThread(){
         stop();
     }
 
-    /* if (internal_thread && internal_thread->joinable()) {
-        internal_thread->join();
-    } */
 }
 
 //////////////////////////////////////////////////
 void WorkerThread::stop() {
-    spdlog::error("WorkerThread::stop: ENTRO NELLA FUNZIONE");
-
     if (_stop_event) {
-        spdlog::warn("WorkerThread::stop: Già fermato");
         return;
     }
 
     _stop_event = true;
 
-    // Notifica tutti i thread che stanno aspettando sulle code
+    // Notify all threads that are waiting on the queues
     low_priority_queue->notify_all();
     high_priority_queue->notify_all();
 
-    // Unisci tutti i thread prima di terminare
     if (internal_thread && internal_thread->joinable()) {
         internal_thread->join();
     }
@@ -227,7 +195,6 @@ void WorkerThread::start_timer(int interval) {
 
 void WorkerThread::workerop(int interval) {
     while (!_stop_event) {
-        // std::cout << "WORKEROPPPPPPPPPPPPPPPPPPP" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(interval));
 
         auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - next_time).count();
@@ -245,14 +212,7 @@ void WorkerThread::process_data(const std::string& data, int priority) {
     status = 8; // processing new data
     processed_data_count++;
 
-    // DEBUG
-    // spdlog::info("WorkerThread::process_data: Worker type: {}", typeid(*worker).name());
-    spdlog::info("WorkerThread::process_data: Received data of size: {}", data.size());
-    spdlog::info("WorkerThread::process_data: Called with priority: {}", priority);
-    // spdlog::info("WorkerThread::process_data: DATA: {}", data);
-
     if (!worker) {
-        spdlog::error("WorkerThread::process_data: worker is null");
         return;
     }
 
@@ -261,15 +221,9 @@ void WorkerThread::process_data(const std::string& data, int priority) {
 
     if (!dataresult_string.empty() && tokenresult == 0) {
         if (priority == 0) {
-            spdlog::warn("WorkerThread::process_data: LPQUEUE SIZE: {}", manager->getResultLpQueue()->size());
-            spdlog::warn("WorkerThread::process_data: LPQUEUE EMPTY: {}", manager->getResultLpQueue()->empty());
-
             manager->getResultLpQueue()->push(dataresult_string);
         } 
         else {
-            spdlog::warn("WorkerThread::process_data: HPQUEUE SIZE: {}", manager->getResultHpQueue()->size());
-            spdlog::warn("WorkerThread::process_data: HPQUEUE EMPTY: {}", manager->getResultHpQueue()->empty());
-
             manager->getResultHpQueue()->push(dataresult_string);
         }
         manager->change_token_results();
