@@ -63,6 +63,9 @@ set(SOURCES ${RTADP_PROTO_FILES} ${SRC_FILES})
 add_executable(ProcessDataConsumer1 ${SOURCES})
 target_compile_options(ProcessDataConsumer1 PRIVATE -g)
 
+# Aggiungi la definizione globale di SPDLOG_ACTIVE_LEVEL
+target_compile_definitions(ProcessDataConsumer1 PRIVATE SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF)
+
 # Collega la libreria jsondom manualmente
 target_link_libraries(ProcessDataConsumer1
     zmq 
@@ -72,4 +75,3 @@ target_link_libraries(ProcessDataConsumer1
     pthread
     ${JsonDom_LIBRARY}  # Aggiungi la libreria jsondom
 )
-

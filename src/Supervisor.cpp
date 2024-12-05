@@ -19,7 +19,7 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
     // Set up logging
     std::string log_file = config["logs_path"].get<std::string>() + "/" + globalname + ".log";
-    logger = new WorkerLogger("worker_logger", log_file, spdlog::level::debug);
+    logger = new WorkerLogger("worker_logger", log_file, spdlog::level::debug);     // spdlog::level::debug
 
     pid = getpid();
     context = zmq::context_t(1);
@@ -129,7 +129,7 @@ Supervisor::~Supervisor() {
             socket_command->close(); 
         }
         catch (const zmq::error_t& e) {
-            spdlog::error("Error while closing socket_command: {}", e.what());
+            logger->error("Error while closing socket_command: {}", e.what());
         }
         delete socket_command;     
         socket_command = nullptr;  
@@ -139,7 +139,7 @@ Supervisor::~Supervisor() {
             socket_lp_data->close(); 
         }
         catch (const zmq::error_t& e) {
-            spdlog::error("Error while closing socket_lp_data: {}", e.what());
+            logger->error("Error while closing socket_lp_data: {}", e.what());
         }
         delete socket_lp_data;
         socket_lp_data = nullptr;
@@ -149,7 +149,7 @@ Supervisor::~Supervisor() {
             socket_hp_data->close();
         }
         catch (const zmq::error_t& e) {
-            spdlog::error("Error while closing socket_hp_data: {}", e.what());
+            logger->error("Error while closing socket_hp_data: {}", e.what());
         }
         delete socket_hp_data;
         socket_hp_data = nullptr;
@@ -161,7 +161,7 @@ Supervisor::~Supervisor() {
                     socket->close();  
                 }
                 catch (const zmq::error_t& e) {
-                    spdlog::error("Error while closing socket: {}", e.what());
+                    logger->error("Error while closing socket_lp_result: {}", e.what());
                 }
                 delete socket; 
                 socket = nullptr;
@@ -176,7 +176,7 @@ Supervisor::~Supervisor() {
                     socket->close();  
                 }
                 catch (const zmq::error_t& e) {
-                    spdlog::error("Error while closing socket: {}", e.what());
+                    logger->error("Error while closing socket_hp_result: {}", e.what());
                 }
                 delete socket; 
                 socket = nullptr;
@@ -189,7 +189,7 @@ Supervisor::~Supervisor() {
             socket_monitoring->close();
         }
         catch (const zmq::error_t& e) {
-            spdlog::error("Error while closing socket_monitoring: {}", e.what());
+            logger->error("Error while closing socket_monitoring: {}", e.what());
         }
         delete socket_monitoring;
         socket_monitoring = nullptr;
@@ -201,7 +201,7 @@ Supervisor::~Supervisor() {
         context.close(); 
     }
     catch (const zmq::error_t& e) {
-        spdlog::error("Error while closing ZMQ context: {}", e.what());
+        logger->error("Error while closing ZMQ context: {}", e.what());
     }
 
     if (logger) {
@@ -372,7 +372,7 @@ void Supervisor::listen_for_result() {
                 }
 
                 if (manager == nullptr) {
-                    spdlog::error("Manager worker not initialized after maximum attempts, skipping index {}", indexmanager);
+                    logger->error(fmt::format("Manager worker not initialized after maximum attempts, skipping index {}", indexmanager));
                     continue;  // Salta l'invio dei risultati se `manager` è ancora nullo
                 }
 
@@ -380,10 +380,10 @@ void Supervisor::listen_for_result() {
                     send_result(manager, indexmanager);
                 }
                 catch (const std::exception& e) {
-                    spdlog::error("Exception while sending results for manager at index {}: {}", indexmanager, e.what());
+                    logger->error(fmt::format("Exception while sending results for manager at index {}: {}", indexmanager, e.what()));
                 }
                 catch (...) {
-                    spdlog::error("Unknown exception while sending results for manager at index {}", indexmanager);
+                    logger->error(fmt::format("Unknown exception while sending results for manager at index {}", indexmanager));
                 }
 
                 indexmanager++;
@@ -391,11 +391,11 @@ void Supervisor::listen_for_result() {
         }
     }
     catch (const std::exception& e) {
-        spdlog::critical("Exception in listen_for_result: {}", e.what());
+        logger->critical("Exception in listen_for_result: {}", e.what());
         continueall = false;  // Interrompi il ciclo per evitare ulteriori errori
     }
     catch (...) {
-        spdlog::critical("Unknown exception in listen_for_result, terminating thread");
+        logger->critical("Unknown exception in listen_for_result, terminating thread");
         continueall = false;
     }
 
@@ -624,7 +624,7 @@ void Supervisor::listen_for_commands() {
             logger->system("Waiting for commands...", globalname);
 
             if (!socket_command) {
-                spdlog::error("Socket is null or invalid in listen_for_commands");
+                logger->error("Socket is null or invalid in listen_for_commands");
                 break; 
             }
 
@@ -643,7 +643,7 @@ void Supervisor::listen_for_commands() {
                         break;
                     }
                     else {
-                        spdlog::error("ZMQ recv error: {}", zmq_strerror(err_code));
+                        logger->error("ZMQ recv error: {}", zmq_strerror(err_code));
                         break; 
                     }
 
@@ -662,7 +662,7 @@ void Supervisor::listen_for_commands() {
                     break; 
                 }
                 else {
-                    spdlog::error("ZMQ exception in listen_for_commands: {}", e.what());
+                    logger->error("ZMQ exception in listen_for_commands: {}", e.what());
                     throw; 
                 }
             }
@@ -674,11 +674,11 @@ void Supervisor::listen_for_commands() {
                 process_command(command);
             }
             catch (const json::parse_error& e) {
-                spdlog::error("JSON parse error: {}", e.what());
+                logger->error("JSON parse error: {}", e.what());
             }
         }
         catch (const std::exception& e) {
-            spdlog::error("Exception in listen_for_commands: {}", e.what());
+            logger->error("Exception in listen_for_commands: {}", e.what());
             throw;
         }
 

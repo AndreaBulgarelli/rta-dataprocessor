@@ -11,7 +11,6 @@
 
 using json = nlohmann::json;
 
-
 // Constructor to initialize the MonitoringThread with a socket and MonitoringPoint reference
 MonitoringThread::MonitoringThread(zmq::socket_t& socket_monitoring, MonitoringPoint& monitoringpoint)
     : socket_monitoring(socket_monitoring), monitoringpoint(monitoringpoint), stop_event(false) {

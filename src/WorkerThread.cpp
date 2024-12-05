@@ -41,7 +41,7 @@ WorkerThread::WorkerThread(int worker_id, WorkerManager* manager, const std::str
     processing_rate = 0.0;
 
 
-    spdlog::info("{} started", globalname);
+    logger->info("{} started", globalname);
     logger->system("WorkerThread started", globalname);
 
     internal_thread = std::make_unique<std::thread>(&WorkerThread::run, this);
@@ -85,7 +85,7 @@ void WorkerThread::run() {
                 }
             } 
             catch (const std::exception& e) {
-                spdlog::error("Exception caught in WorkerThread run: {}", e.what());
+                logger->error("Exception caught in WorkerThread run: {}", e.what());
                 throw;
             }
         } 
@@ -96,7 +96,7 @@ void WorkerThread::run() {
         }
     }
 
-    spdlog::info("{} WorkerThread:run stop ", globalname);
+    logger->info("{} WorkerThread:run stop ", globalname);
     logger->system("WorkerThread:run stop", globalname);
 }
 
@@ -201,7 +201,7 @@ void WorkerThread::workerop(int interval) {
         next_time = std::chrono::high_resolution_clock::now();
         processing_rate = static_cast<double>(processed_data_count) / elapsed_time;
         total_processed_data_count += processed_data_count;
-        spdlog::info("{} Rate Hz {:.1f} Current events {} Total events {} Queues {} {}", globalname, processing_rate, processed_data_count, total_processed_data_count, low_priority_queue->size(), high_priority_queue->size());
+        logger->info(fmt::format("{} Rate Hz {:.1f} Current events {} Total events {} Queues {} {}", globalname, processing_rate, processed_data_count, total_processed_data_count, low_priority_queue->size(), high_priority_queue->size()));
         logger->system(fmt::format("Rate Hz {:.1f} Current events {} Total events {} Queues {} {}", processing_rate, processed_data_count, total_processed_data_count, low_priority_queue->size(), high_priority_queue->size()), globalname);
         processed_data_count = 0;
     }

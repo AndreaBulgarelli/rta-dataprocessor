@@ -19,7 +19,6 @@
 #include "WorkerBase.h"
 #include "WorkerLogger.h"
 #include "MonitoringPoint.h"
-
 #include "ThreadSafeQueue.h"
 
 using json = nlohmann::json;

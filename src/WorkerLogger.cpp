@@ -12,42 +12,39 @@ WorkerLogger::WorkerLogger(const std::string& logger_name, const std::string& lo
 
     // Set a custom formatter
     logger->set_pattern("%Y-%m-%d %H:%M:%S.%e - %l - %v");
-
-    // Set the level to trace to ensure all logs are captured
-    spdlog::set_level(spdlog::level::trace);
 }
 
 // Logging method for debug level
 void WorkerLogger::debug(const std::string& msg, const std::string& extra) {
-    logger->debug("{} - \"{}\"", extra, msg);
+    SPDLOG_DEBUG("{} - \"{}\"", extra, msg);
 }
 
 // Logging method for info level
 void WorkerLogger::info(const std::string& msg, const std::string& extra) {
-    logger->info("{} - \"{}\"", extra, msg);
+    SPDLOG_INFO("{} - \"{}\"", extra, msg);
 }
 
 // Logging method for warning level
 void WorkerLogger::warning(const std::string& msg, const std::string& extra) {
-    logger->warn("{} - \"{}\"", extra, msg);
+    SPDLOG_WARN("{} - \"{}\"", extra, msg);
 }
 
 // Logging method for error level
 void WorkerLogger::error(const std::string& msg, const std::string& extra) {
-    logger->error("{} - \"{}\"", extra, msg);
+    SPDLOG_ERROR("{} - \"{}\"", extra, msg);
 }
 
 // Logging method for critical level
 void WorkerLogger::critical(const std::string& msg, const std::string& extra) {
-    logger->critical("{} - \"{}\"", extra, msg);
+    SPDLOG_CRITICAL("{} - \"{}\"", extra, msg);
 }
 
 // Logging method for system level
 void WorkerLogger::system(const std::string& msg, const std::string& extra) {
-    logger->trace("SYSTEM - {} - \"{}\"", extra, msg);
+    SPDLOG_TRACE("SYSTEM - {} - \"{}\"", extra, msg);
 }
 
 // Helper method to log system-level messages
 void WorkerLogger::log_system(const std::string& msg, const std::string& extra) {
-    logger->trace("SYSTEM - {} - \"{}\"", extra, msg);
+    SPDLOG_TRACE("SYSTEM - {} - \"{}\"", extra, msg);
 }
