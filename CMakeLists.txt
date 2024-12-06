@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_INSTALL_PREFIX "/usr/local")
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib;/usr/local/lib")  
 
@@ -62,6 +62,17 @@ set(SOURCES ${RTADP_PROTO_FILES} ${SRC_FILES})
 
 add_executable(ProcessDataConsumer1 ${SOURCES})
 target_compile_options(ProcessDataConsumer1 PRIVATE -g)
+
+
+########################
+# cmake -DENABLE_LOGGING=ON ..
+# cmake -DENABLE_LOGGING=OFF ..
+
+if(ENABLE_LOGGING)  
+    add_compile_definitions(ENABLE_LOGGING)
+endif()
+########################
+
 
 # Aggiungi la definizione globale di SPDLOG_ACTIVE_LEVEL
 target_compile_definitions(ProcessDataConsumer1 PRIVATE SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO)

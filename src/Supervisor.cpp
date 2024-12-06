@@ -19,7 +19,8 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
     // Set up logging
     std::string log_file = config["logs_path"].get<std::string>() + "/" + globalname + ".log";
-    logger = new WorkerLogger("worker_logger", log_file, spdlog::level::trace);     // Level is set but is not used since we use the macro defined in CMakeList
+    std::string logging_mode = config["logging"].get<std::string>();
+    logger = new WorkerLogger("worker_logger", log_file, spdlog::level::trace, logging_mode);     // Level is set but is not used since we use the macro defined in CMakeList
 
     pid = getpid();
     context = zmq::context_t(1);
