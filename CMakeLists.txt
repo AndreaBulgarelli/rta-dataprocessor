@@ -64,7 +64,7 @@ add_executable(ProcessDataConsumer1 ${SOURCES})
 target_compile_options(ProcessDataConsumer1 PRIVATE -g)
 
 # Aggiungi la definizione globale di SPDLOG_ACTIVE_LEVEL
-target_compile_definitions(ProcessDataConsumer1 PRIVATE SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF)
+target_compile_definitions(ProcessDataConsumer1 PRIVATE SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO)
 
 # Collega la libreria jsondom manualmente
 target_link_libraries(ProcessDataConsumer1

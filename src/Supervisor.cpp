@@ -19,13 +19,13 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
     // Set up logging
     std::string log_file = config["logs_path"].get<std::string>() + "/" + globalname + ".log";
-    logger = new WorkerLogger("worker_logger", log_file, spdlog::level::debug);     // spdlog::level::debug
+    logger = new WorkerLogger("worker_logger", log_file, spdlog::level::trace);     // Level is set but is not used since we use the macro defined in CMakeList
 
     pid = getpid();
     context = zmq::context_t(1);
 
     try {
-        int timeout = 1000; // Timeout di 1 secondo
+        int timeout = 1000; 
 
         // Retrieve and log configuration
         processingtype = config["processing_type"].get<std::string>();
@@ -35,7 +35,7 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
         std::cout << "Supervisor: " << globalname << " / " << dataflowtype << " / " 
                   << processingtype << " / " << datasockettype << std::endl;
-        logger->system("Supervisor: " + globalname + " / " + dataflowtype + " / " 
+        logger->info("Supervisor: " + globalname + " / " + dataflowtype + " / " 
                        + processingtype + " / " + datasockettype, globalname);
 
         // Set up data sockets based on configuration
@@ -58,7 +58,7 @@ Supervisor::Supervisor(std::string config_file, std::string name)
             socket_hp_data->setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
         } 
         else if (datasockettype == "custom") {
-            logger->system("Supervisor started with custom data receiver", globalname);
+            logger->info("Supervisor started with custom data receiver", globalname);
         } 
         else {
             throw std::invalid_argument("Config file: datasockettype must be pushpull or pubsub");
@@ -106,7 +106,7 @@ Supervisor::Supervisor(std::string config_file, std::string name)
     send_info(1, status, fullname, 1, "Low");
 
     std::cout << globalname << " started" << std::endl;
-    logger->system(globalname + " started", globalname);
+    logger->info(globalname + " started", globalname);
 }
 
 //////////////////////////////////
@@ -271,12 +271,12 @@ void Supervisor::setup_result_channel(WorkerManager *manager, int indexmanager) 
             socket_lp_result[indexmanager] = new zmq::socket_t(context, ZMQ_PUSH);
             socket_lp_result[indexmanager]->connect(manager->get_result_lp_socket());
             std::cout << "---result lp socket pushpull " << manager->get_globalname() << " " << manager->get_result_lp_socket() << std::endl;
-            logger->system("---result lp socket pushpull " + manager->get_globalname() + " " + manager->get_result_lp_socket(), globalname);
+            logger->info("---result lp socket pushpull " + manager->get_globalname() + " " + manager->get_result_lp_socket(), globalname);
         } else if (manager->get_result_socket_type() == "pubsub") {
             socket_lp_result[indexmanager] = new zmq::socket_t(context, ZMQ_PUB);
             socket_lp_result[indexmanager]->bind(manager->get_result_lp_socket());
             std::cout << "---result lp socket pushpull " << manager->get_globalname() << " " << manager->get_result_lp_socket() << std::endl;
-            logger->system("---result lp socket pushpull " + manager->get_globalname() + " " + manager->get_result_lp_socket(), globalname);
+            logger->info("---result lp socket pushpull " + manager->get_globalname() + " " + manager->get_result_lp_socket(), globalname);
         }
     }
 
@@ -285,12 +285,12 @@ void Supervisor::setup_result_channel(WorkerManager *manager, int indexmanager) 
             socket_hp_result[indexmanager] = new zmq::socket_t(context, ZMQ_PUSH);
             socket_hp_result[indexmanager]->connect(manager->get_result_hp_socket());
             std::cout << "---result hp socket pushpull " << manager->get_globalname() << " " << manager->get_result_hp_socket() << std::endl;
-            logger->system("---result hp socket pushpull " + manager->get_globalname() + " " + manager->get_result_hp_socket(), globalname);
+            logger->info("---result hp socket pushpull " + manager->get_globalname() + " " + manager->get_result_hp_socket(), globalname);
         } else if (manager->get_result_socket_type() == "pubsub") {
             socket_hp_result[indexmanager] = new zmq::socket_t(context, ZMQ_PUB);
             socket_hp_result[indexmanager]->bind(manager->get_result_hp_socket());
             std::cout << "---result hp socket pushpull " << manager->get_globalname() << " " << manager->get_result_hp_socket() << std::endl;
-            logger->system("---result hp socket pushpull " + manager->get_globalname() + " " + manager->get_result_hp_socket(), globalname);
+            logger->info("---result hp socket pushpull " + manager->get_globalname() + " " + manager->get_result_hp_socket(), globalname);
         }
     }
 }
@@ -340,17 +340,17 @@ void Supervisor::handle_signals(int signum) {
     if (instance) {
         if (signum == SIGTERM) {
             std::cerr << "\nSIGTERM received in main thread. Terminating with cleaned shutdown." << std::endl;
-            instance->logger->system("SIGTERM received in main thread. Terminating with cleaned shutdown", instance->globalname);
+            instance->logger->warning("SIGTERM received in main thread. Terminating with cleaned shutdown", instance->globalname);
             instance->command_cleanedshutdown();
         } 
         else if (signum == SIGINT) {
             std::cerr << "\nSIGINT received in main thread. Terminating with shutdown." << std::endl;
-            instance->logger->system("SIGINT received in main thread. Terminating with shutdown", instance->globalname);
+            instance->logger->warning("SIGINT received in main thread. Terminating with shutdown", instance->globalname);
             instance->command_shutdown();
         } 
         else {
             std::cerr << "\nReceived signal " << signum << "in main thread. Terminating." << std::endl;
-            instance->logger->system("Received signal " + std::to_string(signum) + "in main thread. Terminating", instance->globalname);
+            instance->logger->warning("Received signal " + std::to_string(signum) + "in main thread. Terminating", instance->globalname);
             instance->command_shutdown();
         }
     }
@@ -400,7 +400,7 @@ void Supervisor::listen_for_result() {
     }
 
     std::cout << "End listen_for_result\n" << std::endl;
-    logger->system("End listen_for_result", globalname);
+    logger->info("End listen_for_result", globalname);
 }
 
 // Send result data
@@ -488,7 +488,7 @@ void Supervisor::listen_for_lp_data() {
     }
 
     std::cout << "End listen_for_lp_data" << std::endl;
-    logger->system("End listen_for_lp_data", globalname);
+    logger->info("End listen_for_lp_data", globalname);
 }
 
 // Listen for high priority data
@@ -506,7 +506,7 @@ void Supervisor::listen_for_hp_data() {
     }
 
     std::cout << "End listen_for_hp_data" << std::endl;
-    logger->system("End listen_for_hp_data", globalname);
+    logger->info("End listen_for_hp_data", globalname);
 }
 
 // Listen for low priority strings
@@ -524,7 +524,7 @@ void Supervisor::listen_for_lp_string() {
     }
 
     std::cout << "End listen_for_lp_string\n" << std::endl;
-    logger->system("End listen_for_lp_string", globalname);
+    logger->info("End listen_for_lp_string", globalname);
 }
 
 // Listen for high priority strings
@@ -542,7 +542,7 @@ void Supervisor::listen_for_hp_string() {
     }
 
     std::cout << "End listen_for_hp_string\n" << std::endl;
-    logger->system("End listen_for_hp_string", globalname);
+    logger->info("End listen_for_hp_string", globalname);
 }
 
 // Listen for low priority files
@@ -563,7 +563,7 @@ void Supervisor::listen_for_lp_file() {
     }
 
     std::cout << "End listen_for_lp_file\n" << std::endl;
-    logger->system("End listen_for_lp_file", globalname);
+    logger->info("End listen_for_lp_file", globalname);
 }
 
 std::pair<std::vector<json>, int> Supervisor::open_file(const std::string &filename) {
@@ -613,7 +613,7 @@ void Supervisor::listen_for_hp_file() {
     }
 
     std::cout << "End listen_for_hp_file\n" << std::endl;
-    logger->system("End listen_for_hp_file", globalname);
+    logger->info("End listen_for_hp_file", globalname);
 }
 
 ///////////////////////////////////
@@ -621,7 +621,7 @@ void Supervisor::listen_for_commands() {
     while (continueall) {
         try {
             std::cout << "Waiting for commands..." << std::endl;
-            logger->system("Waiting for commands...", globalname);
+            logger->info("Waiting for commands...", globalname);
 
             if (!socket_command) {
                 logger->error("Socket is null or invalid in listen_for_commands");
@@ -686,7 +686,7 @@ void Supervisor::listen_for_commands() {
     }
 
     std::cout << "End listen_for_commands" << std::endl;
-    logger->system("End listen_for_commands", globalname);
+    logger->info("End listen_for_commands", globalname);
 }
 ///////////////////////////////////
 
@@ -704,12 +704,12 @@ void Supervisor::command_cleanedshutdown() {
 
         for (auto &manager : manager_workers) {
             std::cout << "Trying to stop " << manager->get_globalname() << "..." << std::endl;
-            logger->system("Trying to stop " + manager->get_globalname() + "...", globalname);
+            logger->info("Trying to stop " + manager->get_globalname() + "...", globalname);
 
             while (manager->getLowPriorityQueue()->size() != 0 || manager->getHighPriorityQueue()->size() != 0) {
                 std::cout << "Queues data of manager " << manager->get_globalname() << " have size " 
                           << manager->getLowPriorityQueue()->size() << " " << manager->getHighPriorityQueue()->size() << std::endl;
-                logger->system("Queues data of manager " + manager->get_globalname() + " have size " 
+                logger->info("Queues data of manager " + manager->get_globalname() + " have size " 
                                + std::to_string(manager->getLowPriorityQueue()->size()) + " " 
                                + std::to_string(manager->getHighPriorityQueue()->size()), globalname);
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -718,7 +718,7 @@ void Supervisor::command_cleanedshutdown() {
             while (manager->getResultLpQueue()->size() != 0 || manager->getResultHpQueue()->size() != 0) {
                 std::cout << "Queues result of manager " << manager->get_globalname() << " have size " 
                           << manager->getResultLpQueue()->size() << " " << manager->getResultHpQueue()->size() << std::endl;
-                logger->system("Queues result of manager " + manager->get_globalname() + " have size " 
+                logger->info("Queues result of manager " + manager->get_globalname() + " have size " 
                                + std::to_string(manager->getResultLpQueue()->size()) + " " 
                                + std::to_string(manager->getResultHpQueue()->size()), globalname);
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -741,12 +741,12 @@ void Supervisor::command_reset() {
 
         for (auto &manager : manager_workers) {
             std::cout << "Trying to reset " << manager->get_globalname() << "..." << std::endl;
-            logger->system("Trying to reset " + manager->get_globalname() + "...", globalname);
+            logger->info("Trying to reset " + manager->get_globalname() + "...", globalname);
             manager->clean_queue();
             std::cout << "Queues of manager " << manager->get_globalname() << " have size " 
                       << manager->getLowPriorityQueue()->size() << " " << manager->getHighPriorityQueue()->size() << " " 
                       << manager->getResultLpQueue()->size() << " " << manager->getResultHpQueue()->size() << std::endl;
-            logger->system("Queues of manager " + manager->get_globalname() + " have size " 
+            logger->info("Queues of manager " + manager->get_globalname() + " have size " 
                            + std::to_string(manager->getLowPriorityQueue()->size()) + " " 
                            + std::to_string(manager->getHighPriorityQueue()->size()) + " " 
                            + std::to_string(manager->getResultLpQueue()->size()) + " " 
@@ -898,7 +898,7 @@ void Supervisor::stop_all(bool fast) {
     continueall = false;
 
     std::cout << "Stopping all workers and managers..." << std::endl;
-    logger->system("Stopping all workers and managers...", globalname);
+    logger->info("Stopping all workers and managers...", globalname);
 
     command_stop();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -910,6 +910,6 @@ void Supervisor::stop_all(bool fast) {
     // continueall = false;
 
     std::cout << "All Supervisor workers and managers and internal threads terminated." << std::endl;
-    logger->system("All Supervisor workers and managers and internal threads terminated.", globalname);
+    logger->info("All Supervisor workers and managers and internal threads terminated.", globalname);
 }
 //////////////////////////////////////////////////

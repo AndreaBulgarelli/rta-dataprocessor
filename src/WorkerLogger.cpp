@@ -1,50 +1,59 @@
+#include "WorkerLogger.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/fmt/fmt.h"
-#include <string>
-#include "WorkerLogger.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 
-// Constructor to initialize the WorkerLogger with a logger name, log file, and log level
 WorkerLogger::WorkerLogger(const std::string& logger_name, const std::string& log_file, spdlog::level::level_enum level) {
-    // Create a logger
-    logger = spdlog::basic_logger_mt(logger_name, log_file);
+    std::vector<spdlog::sink_ptr> sinks;
+
+    // Sink to write on file
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_file, true);
+    file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");  // Pattern senza colori
+    sinks.push_back(file_sink);
+
+    // Sink to log on console
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] %^[%l]%$ %v");  // Pattern con colori
+    sinks.push_back(console_sink);
+
+    // Create a logger with both sinks
+    logger = std::make_shared<spdlog::logger>(logger_name, sinks.begin(), sinks.end());
     logger->set_level(level);
-
-    // Set a custom formatter
-    logger->set_pattern("%Y-%m-%d %H:%M:%S.%e - %l - %v");
+    // logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 }
 
-// Logging method for debug level
 void WorkerLogger::debug(const std::string& msg, const std::string& extra) {
-    SPDLOG_DEBUG("{} - \"{}\"", extra, msg);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
+    logger->debug("{} - \"{}\"", extra, msg);
+#endif
 }
 
-// Logging method for info level
 void WorkerLogger::info(const std::string& msg, const std::string& extra) {
-    SPDLOG_INFO("{} - \"{}\"", extra, msg);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_INFO
+    logger->info("{} \"{}\"", extra, msg);
+#endif
 }
 
-// Logging method for warning level
 void WorkerLogger::warning(const std::string& msg, const std::string& extra) {
-    SPDLOG_WARN("{} - \"{}\"", extra, msg);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_WARN
+    logger->warn("{} \"{}\"", extra, msg);
+#endif
 }
 
-// Logging method for error level
 void WorkerLogger::error(const std::string& msg, const std::string& extra) {
-    SPDLOG_ERROR("{} - \"{}\"", extra, msg);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_ERROR
+    logger->error("{} \"{}\"", extra, msg);
+#endif
 }
 
-// Logging method for critical level
 void WorkerLogger::critical(const std::string& msg, const std::string& extra) {
-    SPDLOG_CRITICAL("{} - \"{}\"", extra, msg);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_CRITICAL
+    logger->critical("{} - \"{}\"", extra, msg);
+#endif
 }
 
-// Logging method for system level
 void WorkerLogger::system(const std::string& msg, const std::string& extra) {
-    SPDLOG_TRACE("SYSTEM - {} - \"{}\"", extra, msg);
-}
-
-// Helper method to log system-level messages
-void WorkerLogger::log_system(const std::string& msg, const std::string& extra) {
-    SPDLOG_TRACE("SYSTEM - {} - \"{}\"", extra, msg);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_TRACE
+    logger->trace("SYSTEM - {} - \"{}\"", extra, msg);
+#endif
 }

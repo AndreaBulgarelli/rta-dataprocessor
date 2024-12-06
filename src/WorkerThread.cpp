@@ -40,9 +40,7 @@ WorkerThread::WorkerThread(int worker_id, WorkerManager* manager, const std::str
     total_processed_data_count = 0;
     processing_rate = 0.0;
 
-
-    logger->info("{} started", globalname);
-    logger->system("WorkerThread started", globalname);
+    logger->info("WorkerThread started", globalname);
 
     internal_thread = std::make_unique<std::thread>(&WorkerThread::run, this);
 }
@@ -96,8 +94,6 @@ void WorkerThread::run() {
         }
     }
 
-    logger->info("{} WorkerThread:run stop ", globalname);
-    logger->system("WorkerThread:run stop", globalname);
 }
 
 //////////////////////////////////////////////////
@@ -108,7 +104,7 @@ WorkerThread::~WorkerThread(){
         std::lock_guard<std::mutex> lock(stop_worker_mutex);
         if (worker) {
             delete worker;
-            worker = nullptr; // Prevenire doppi delete
+            worker = nullptr; 
         }
     }
 
@@ -202,7 +198,6 @@ void WorkerThread::workerop(int interval) {
         processing_rate = static_cast<double>(processed_data_count) / elapsed_time;
         total_processed_data_count += processed_data_count;
         logger->info(fmt::format("{} Rate Hz {:.1f} Current events {} Total events {} Queues {} {}", globalname, processing_rate, processed_data_count, total_processed_data_count, low_priority_queue->size(), high_priority_queue->size()));
-        logger->system(fmt::format("Rate Hz {:.1f} Current events {} Total events {} Queues {} {}", processing_rate, processed_data_count, total_processed_data_count, low_priority_queue->size(), high_priority_queue->size()), globalname);
         processed_data_count = 0;
     }
 }

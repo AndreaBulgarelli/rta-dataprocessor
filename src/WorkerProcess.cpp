@@ -26,7 +26,7 @@ WorkerProcess::WorkerProcess(int worker_id, std::shared_ptr<WorkerManager> manag
 
     start_timer(1);
     std::cout << globalname << " started " << pidprocess << std::endl;
-    logger->system("WorkerProcess started", globalname);
+    logger->info("WorkerProcess started", globalname);
 }
 
 WorkerProcess::~WorkerProcess() {
@@ -85,7 +85,7 @@ void WorkerProcess::run() {
     stop();
     manager->setWorkerStatus(worker_id, 16); // stop
     std::cout << "WorkerProcess stop " << globalname << std::endl;
-    logger->system("WorkerProcess stop", globalname);
+    logger->info("WorkerProcess stop", globalname);
 }
 
 void WorkerProcess::start_timer(int interval) {
@@ -107,7 +107,7 @@ void WorkerProcess::workerop() {
 
     std::cout << globalname << " Rate Hz " << processing_rate << " Current events " << processed_data_count
               << " Total events " << total_processed_data_count << std::endl;
-    logger->system("Rate Hz " + std::to_string(processing_rate) + " Current events " +
+    logger->info("Rate Hz " + std::to_string(processing_rate) + " Current events " +
                   std::to_string(processed_data_count) + " Total events " + std::to_string(total_processed_data_count),
                   globalname);
     processed_data_count = 0;

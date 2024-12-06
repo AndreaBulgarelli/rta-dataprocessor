@@ -50,10 +50,8 @@ WorkerManager::WorkerManager(int manager_id, Supervisor* supervisor, const std::
     tokenreadinglock = std::make_shared<std::mutex>();
 
     // Log the start of WorkerManager
-    logger->info("{} started", globalname);
-    logger->system("Started", globalname);
-    logger->info(fmt::format("Socket result parameters: {} / {} / {} / {}", result_socket_type, result_lp_socket, result_hp_socket, result_dataflow_type));
-    logger->system(fmt::format("Socket result parameters: {} / {} / {} / {}", result_socket_type, result_lp_socket, result_hp_socket, result_dataflow_type), globalname);
+    logger->info("Started", globalname);
+    logger->info(fmt::format("Socket result parameters: {} / {} / {} / {}", result_socket_type, result_lp_socket, result_hp_socket, result_dataflow_type), globalname);
 
     status = "Initialised";
     supervisor->send_info(1, status, fullname, 1, "Low");
@@ -242,7 +240,7 @@ void WorkerManager::start_service_threads() {
     monitoring_thread = new MonitoringThread(*socket_monitoring, *monitoringpoint);  // Create MonitoringThread instance
     // monitoring_thread = std::thread(&MonitoringThread::run, monitoringthread);  // Start the thread with run method
     monitoring_thread->start();
-    std::cout << "Service thread started" << std::endl;
+    logger->info(fmt::format("Service thread started"));
 }
 
 // Function to start worker threads 
@@ -309,13 +307,9 @@ void WorkerManager::run() {
                 workersstatus = workersstatus / (num_workers - workersstatusinit);
             }
         }
-
-        logger->info("Manager stop {}", globalname);
-        logger->system("Manager stop", globalname);
     } 
     catch (const std::exception& e) {
         logger->error("Exception caught: {}", e.what());
-        logger->system(fmt::format("Exception caught: {}", e.what()), globalname);
         stop_internalthreads();
         continueall = false;
     }
@@ -323,16 +317,14 @@ void WorkerManager::run() {
 
 // Function to clean the queues
 void WorkerManager::clean_queue() {
-    logger->info("Cleaning queues...");
-    logger->system("Cleaning queues...", globalname);
+    logger->info("Cleaning queues...", globalname);
 
     clean_single_queue(low_priority_queue, "low_priority_queue");
     clean_single_queue(high_priority_queue, "high_priority_queue");
     clean_single_queue(result_lp_queue, "result_lp_queue");
     clean_single_queue(result_hp_queue, "result_hp_queue");
 
-    logger->info("End cleaning queues");
-    logger->system("End cleaning queues", globalname);
+    logger->info("End cleaning queues", globalname);
 }
 
 //////////////////////////////////////////
@@ -365,16 +357,14 @@ void WorkerManager::stop(bool fast) {
 void WorkerManager::stop_internalthreads() {
     _stop_event = true;
 
-    logger->info("Stopping Manager internal threads...");
-    logger->system("Stopping Manager internal threads...", globalname);
+    logger->info("Stopping Manager internal threads...", globalname);
 
     if (monitoring_thread) {
         delete monitoring_thread;  
         monitoring_thread = nullptr;  
     }
     
-    logger->info("All Manager internal threads terminated.");
-    logger->system("All Manager internal threads terminated.", globalname);
+    logger->info("All Manager internal threads terminated.", globalname);
 }
 //////////////////////////////////////////
 
@@ -389,34 +379,29 @@ void WorkerManager::configworkers(const json& configuration) {
 
 void WorkerManager::clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::string>>& queue, const std::string& queue_name) {
     if (!queue->empty()) {
-        logger->info(fmt::format("   - {} size {}", queue_name, queue->size()));
-        logger->system(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);
+        logger->info(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);
 
         while (!queue->empty()) {
             queue->pop();
         }
 
-        logger->info("   - {} empty", queue_name);
-        logger->system(fmt::format("   - {} empty", queue_name), globalname);
+        logger->info(fmt::format("   - {} empty", queue_name), globalname);
     }
 }
 
 // Not used
 void WorkerManager::close_queue(std::shared_ptr<std::queue<std::string>>& queue, const std::string& queue_name) {
     try {
-        logger->info(fmt::format("   - {} size {}", queue_name, queue->size()));
-        logger->system(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);
+        logger->info(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);
 
         while (!queue->empty()) {
             queue->pop();
         }
 
         queue.reset();
-        logger->info("   - {} empty", queue_name);
-        logger->system(fmt::format("   - {} empty", queue_name), globalname);
+        logger->info(fmt::format("   - {} empty", queue_name), globalname);
     } 
     catch (const std::exception& e) {
-        // spdlog::error("ERROR in worker stop {} cleaning: {}", queue_name, e.what());
         logger->error(fmt::format("ERROR in worker stop {} cleaning: {}", queue_name, e.what()), globalname);
     }
 }
