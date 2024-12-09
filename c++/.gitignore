@@ -8,7 +8,6 @@ build/
 logs/
 CMakeFiles/
 CMakeCache.txt
-cmake*
 Makefile
 ProcessDataConsumer
 ProcessDataConsumer1
