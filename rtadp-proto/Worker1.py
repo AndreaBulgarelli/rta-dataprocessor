@@ -47,7 +47,7 @@ class Worker1(WorkerBase):
 	def process_data(self, data, priority):
 
 		#TODO: handle priority
-
+		print(f"data is of type: {type(data)} and the content is \n\n: {data}\n")
 		# Custom processing logic for Worker1
 		#print("Process data...")
 		# Deserialize the Avro message using avro library
