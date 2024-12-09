@@ -1,0 +1,17 @@
+build/*
+*.jar
+*.o
+*.inl
+*.log
+core.*
+
+rtadp-proto/ACS/lib/
+rtadp-proto/ACS/object/
+
+__pycache__
+
+workers/build
+workers/dist
+workers/workers.egg-info
+
+.vscode
