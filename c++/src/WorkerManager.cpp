@@ -245,7 +245,7 @@ void WorkerManager::start_service_threads() {
 
 // Function to start worker threads 
 void WorkerManager::start_worker_threads(int num_threads) {
-    logger->info(fmt::format("Number of threads for WorkerManager: {}", num_threads));
+   /* logger->info(fmt::format("Number of threads for WorkerManager: {}", num_threads));
 
     if (num_threads > max_workers) {
         // spdlog::warn("WARNING! It is not possible to create more than {} threads", max_workers);
@@ -261,6 +261,7 @@ void WorkerManager::start_worker_threads(int num_threads) {
         // worker->run();
         worker_threads.push_back(worker);
     }
+    */
 }
 
 // Function to start worker processes

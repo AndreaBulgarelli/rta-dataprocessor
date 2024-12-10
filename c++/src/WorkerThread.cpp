@@ -61,7 +61,7 @@ void WorkerThread::run() {
     while (!_stop_event) {
         // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         if (processdata == 1 && tokenreading == 0) {
-            try {
+
                 // Check and process high-priority queue first
                 if (!high_priority_queue->empty()) {
                     auto high_priority_data = high_priority_queue->front();
@@ -72,20 +72,27 @@ void WorkerThread::run() {
                 else {
                     // Process low-priority queue if high-priority queue is empty
                     if (!low_priority_queue->empty()) {
+                        std::cout << "DENTRO RUN: " << std::endl;
+
                         auto low_priority_data = low_priority_queue->front();
                         low_priority_queue->pop();
                         manager->change_token_reading();
-                        process_data(low_priority_data, 0);
+
+                        std::cout << "ENTRO IN PROCESSDATA: " << std::endl;
+
+
+                        if (!low_priority_data.empty()) {
+                            process_data(low_priority_data, 0);
+                        }
+                        else {
+                            logger->error("low_priority_data data is empty!");
+                        }
                     } 
                     else {
                         status = 2; // waiting for new data
                     }
                 }
-            } 
-            catch (const std::exception& e) {
-                logger->error("Exception caught in WorkerThread run: {}", e.what());
-                throw;
-            }
+
         } 
         else {
             if (tokenreading != 0 && status != 4) {
@@ -212,7 +219,12 @@ void WorkerThread::process_data(const std::string& data, int priority) {
     }
 
     auto dataresult = worker->processData(data, priority);
+    std::cout << "DDDDDDDDDD: " << dataresult << std::endl;
+
     auto dataresult_string = dataresult["data"].get<std::string>();     
+
+    std::cout << "eeeeeeeeee: " << dataresult_string << std::endl;
+
 
     if (!dataresult_string.empty() && tokenresult == 0) {
         if (priority == 0) {

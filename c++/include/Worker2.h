@@ -35,7 +35,7 @@ public:
 
     // Override the process_data method
     //std::string process_data(const std::string& data);
-    nlohmann::json processData(const nlohmann::json& data, int priority);
+    nlohmann::json processData(const std::string data, int priority);
 };
 
 #endif // WORKER2_H

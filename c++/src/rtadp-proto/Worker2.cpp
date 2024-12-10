@@ -42,6 +42,11 @@ void Worker2::config(const nlohmann::json& configuration) {
     WorkerBase::config(configuration);
 }
 
+nlohmann::json Worker2::processData(const std::string data, int priority) {
+    return {};
+}
+
+/*
 // Override the process_data method
 nlohmann::json Worker2::processData(const nlohmann::json& data, int priority) {
 
@@ -89,7 +94,7 @@ nlohmann::json Worker2::processData(const nlohmann::json& data, int priority) {
     result["priority"] = priority;
     return result;
 }
-
+*/
 
 // Helper function to generate random duration between 0 and 100 milliseconds
 double Worker2::random_duration() {

@@ -474,7 +474,7 @@ void Supervisor::send_result(WorkerManager *manager, int indexmanager) {
 }
 ///////////////////////////////////////////////////////////////////
 
-// Listen for low priority data
+// Listen for low priority binary data
 void Supervisor::listen_for_lp_data() {
     while (continueall) {
         if (!stopdata) {
@@ -482,8 +482,15 @@ void Supervisor::listen_for_lp_data() {
             socket_lp_data->recv(data);
 
             for (auto &manager : manager_workers) {
-                json decodeddata = json::parse(data.to_string());
-                manager->getLowPriorityQueue()->push(decodeddata);
+                auto decodeddata = data.to_string();
+                std::cout << "BBBBBBBBBB: " << decodeddata << std::endl;
+
+                if (!decodeddata.empty()) {
+                    manager->getLowPriorityQueue()->push(decodeddata);
+                }
+                else {
+                    std::cerr << "Received null or empty data!" << std::endl;
+                }
             }
         }
     }
@@ -492,7 +499,7 @@ void Supervisor::listen_for_lp_data() {
     logger->info("End listen_for_lp_data", globalname);
 }
 
-// Listen for high priority data
+// Listen for high priority binary data
 void Supervisor::listen_for_hp_data() {
     while (continueall) {
         if (!stopdata) {

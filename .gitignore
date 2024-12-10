@@ -15,3 +15,4 @@ workers/dist
 workers/workers.egg-info
 
 .vscode
+.vs

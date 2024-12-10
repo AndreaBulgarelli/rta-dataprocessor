@@ -41,7 +41,3 @@ void WorkerBase::config(const nlohmann::json& configuration) {
         logger->info("Received config: {}", configuration.dump());
     }
 }
-
-nlohmann::json WorkerBase::processData(const nlohmann::json& data, int priority) {
-   return {};
-}
