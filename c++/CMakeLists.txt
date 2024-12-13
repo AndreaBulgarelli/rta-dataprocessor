@@ -10,6 +10,12 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib;/usr/local/lib")  
 
+set(GS_COMM ${PROJECT_SOURCE_DIR}/gs_examples_communication)
+set(GS_SER ${GS_COMM}/gs_examples_serialization)
+
+set(BUILD_CCSDS ON)
+
+
 set(AVRO_CPP_PATH "/usr/local/include/avro")
 
 set(INC_DIR
@@ -52,7 +58,7 @@ set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 
 # Aggiungi il percorso degli header di JsonDom
-include_directories(${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIR} ${Spdlog_INCLUDE_DIR} ${INC_DIR} "/include" ${JsonDom_INCLUDE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIR} ${Spdlog_INCLUDE_DIR} ${INC_DIR} "/include" ${JsonDom_INCLUDE_DIR} ${GS_COMM} ${GS_SER})
 link_directories("/usr/local/lib")  
 
 file(GLOB RTADP_PROTO_FILES "${CMAKE_SOURCE_DIR}/src/rtadp-proto/*.cpp")
@@ -62,6 +68,10 @@ set(SOURCES ${RTADP_PROTO_FILES} ${SRC_FILES})
 
 add_executable(ProcessDataConsumer1 ${SOURCES})
 target_compile_options(ProcessDataConsumer1 PRIVATE -g)
+
+ add_subdirectory(${GS_COMM})
+# add_subdirectory(${GS_COMM}/src)
+# add_subdirectory(${GS_SER}/ccsds)
 
 
 ########################
@@ -85,4 +95,5 @@ target_link_libraries(ProcessDataConsumer1
     ${Boost_LIBRARY}  
     pthread
     ${JsonDom_LIBRARY}  # Aggiungi la libreria jsondom
+    GSccsds
 )

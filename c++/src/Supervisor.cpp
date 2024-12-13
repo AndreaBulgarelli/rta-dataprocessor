@@ -8,6 +8,20 @@
 
 #include "Supervisor.h"
 
+
+#include "avro/Generic.hh"
+#include "avro/Schema.hh"
+#include "avro/ValidSchema.hh"
+#include "avro/Compiler.hh"
+#include "avro/GenericDatum.hh"
+#include "avro/DataFile.hh"
+#include "avro/Decoder.hh"
+#include "avro/Specific.hh"
+
+#include "ccsds/include/packet.h"
+
+
+
 Supervisor* Supervisor::instance = nullptr;
 
 Supervisor::Supervisor(std::string config_file, std::string name)
@@ -86,7 +100,7 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
     manager_workers = std::vector<WorkerManager*>();
     processdata = 0;
-    stopdata = true;
+    // stopdata = true;
 
     sendresultslock = std::make_shared<std::mutex>();
 
@@ -108,6 +122,36 @@ Supervisor::Supervisor(std::string config_file, std::string name)
 
     std::cout << globalname << " started" << std::endl;
     logger->info(globalname + " started", globalname);
+
+
+    std::ifstream ifs("../../rtadp-proto/avro_schema.json");
+    avro::compileJsonSchema(ifs, avro_schema);
+
+
+    // Load Avro schema from the provided schema string
+    /* std::string avro_schema_str = R"({
+        "type": "record",
+        "name": "AvroMonitoringPoint",
+        "namespace": "astri.mon.kafka",
+        "fields": [
+            {"name": "assembly", "type": "string"},
+            {"name": "name", "type": "string"},
+            {"name": "serial_number", "type": "string"},
+            {"name": "timestamp", "type": "double"},
+            {"name": "source_timestamp", "type": ["null", "long"]},
+            {"name": "units", "type": "string"},
+            {"name": "archive_suppress", "type": "boolean"},
+            {"name": "env_id", "type": "string"},
+            {"name": "eng_gui", "type": "boolean"},
+            {"name": "op_gui", "type": "boolean"},
+            {"name": "data", "type": {"type": "array", "items": ["double", "int", "long", "string", "boolean"]}}
+        ]
+    })";
+
+    std::istringstream schema_stream(avro_schema_str);
+    avro::compileJsonSchema(schema_stream, avro_schema);    
+
+    this->avro_schema = avro_schema;*/
 }
 
 //////////////////////////////////
@@ -247,6 +291,8 @@ void Supervisor::load_configuration(const std::string &config_file, const std::s
 
 // Start service threads for data handling
 void Supervisor::start_service_threads() {
+    std::cout << "AAAAAAAAA" << std::endl;
+
     if (dataflowtype == "binary") {
         lp_data_thread = std::thread(&Supervisor::listen_for_lp_data, this);
         hp_data_thread = std::thread(&Supervisor::listen_for_hp_data, this);
@@ -476,21 +522,193 @@ void Supervisor::send_result(WorkerManager *manager, int indexmanager) {
 
 // Listen for low priority binary data
 void Supervisor::listen_for_lp_data() {
+    std::cout << "\n Dentro listen_for_lp_data " << std::endl;
+
     while (continueall) {
+        std::cout << "Ci sono" << std::endl;
+
         if (!stopdata) {
+            std::cout << "Ci sono0" << std::endl;
+
             zmq::message_t data;
             socket_lp_data->recv(data);
 
+
+
+            try {
+                auto result = socket_lp_data->recv(data);
+                int err_code = zmq_errno();
+
+                if (result) {
+                    while (err_code == EAGAIN) {   // Continue if no commands were received
+                        std::cout << "Waiting" << std::endl;
+                    }
+
+                    continue; // Keep looking for commands
+                }
+            }
+            catch (const zmq::error_t& e) {
+                int err_code = zmq_errno();
+
+                if (err_code == EINTR) {     // SIGINT
+                    break;
+                }
+                else {
+                    logger->error("ZMQ exception in listen_for_commands: {}", e.what());
+                    throw;
+                }
+            }
+
+            std::cout << "Ci sono1" << std::endl;
+            std::cout << "DATA.DATA" << data.data() << std::endl;
+            std::cout << "Received data size: " << data.size() << std::endl;
+
+            if (data.size() < sizeof(int32_t)) {
+                std::cerr << "Error: Received data size is smaller than expected." << std::endl;
+                break;
+            }
+
+            int32_t size;
+            std::vector<uint8_t> vec;
+
+            if (size <= 0 || size > data.size() - sizeof(int32_t)) {
+                std::cerr << "Invalid size value: " << size << std::endl;
+                break;
+            }
+
+            memcpy(&size, data.data(), sizeof(int32_t));
+
+            std::cout << "Ci sono2" << std::endl;
+
+            // std::cout << "msg size is: " << message.size() << std::endl;
+            vec.resize(size);
+            memcpy(vec.data(), static_cast<const char*>(data.data()) + sizeof(int32_t), size * sizeof(uint8_t));
+
+            std::cout << "Ci sono3" << std::endl;
+
+
+            HeaderWF receivedPacket;
+            std::memcpy(&receivedPacket, vec.data(), sizeof(HeaderWF));
+
+            std::cout << "Ci sono4" << std::endl;
+
+            // Verify the content of the debufferized data
+            std::cout << "Debufferized Header APID: " << receivedPacket.h.apid << std::endl;
+            std::cout << "Debufferized Data size: " << receivedPacket.d.size << std::endl;
+
+            std::cout << "size of timespec: " << sizeof(receivedPacket.h.ts) << ". alignment:" << alignof(receivedPacket.h.ts) << std::endl;
+
+            HeaderWF::print(receivedPacket, 10);
+
+
             for (auto &manager : manager_workers) {
                 auto decodeddata = data.to_string();
-                std::cout << "BBBBBBBBBB: " << decodeddata << std::endl;
+                std::cout << "\n RAW RECEIVED DATA: " << data << std::endl;
+                std::cout << "\n DECODED RECEIVED DATA: " << decodeddata << std::endl;
 
                 if (!decodeddata.empty()) {
                     manager->getLowPriorityQueue()->push(decodeddata);
+
+                }
+
+                /*
+                const uint8_t* avro_data = reinterpret_cast<const uint8_t*>(data.data());   // static_cast
+                size_t avro_size = data.size();
+
+                if (avro_data == nullptr) {
+                    logger->error("Avro data pointer is null. Cannot process further.");
+                    break;
+                }
+
+                std::cout << "\n AVRO DATA: " << avro_data << std::endl;
+                std::cout << "\n AVRO SIZE: " << avro_size << std::endl;
+
+                std::unique_ptr<avro::InputStream> in;
+                try {
+                    in = avro::memoryInputStream(avro_data, avro_size);
+                }
+                catch (const std::exception& e) {
+                    logger->error("Failed to create memory input stream: {}", e.what());
+                    throw;
+                }
+
+                avro::DecoderPtr d = avro::binaryDecoder();
+                d->init(*in);
+
+                avro::GenericDatum datum(avro_schema);
+                try {
+                    avro::decode(*d, datum);
+                }
+                catch (const avro::Exception& e) {
+                    logger->error("Error decoding Avro data: {}", e.what());
+                    throw;
+                }
+
+                std::cout << "Type: " << datum.type() << std::endl;
+
+                if (datum.type() == avro::AVRO_RECORD) {
+                    try {
+                        auto record = std::any_cast<avro::GenericRecord>(datum);
+                        std::cout << "Record field count: " << record.fieldCount() << std::endl;
+                    }
+                    catch (const avro::Exception& e) {
+                        logger->error("Error accessing GenericDatum value: {}", e.what());
+                        throw;
+                    }
+                }
+                else {
+                    std::cout << "Datum is not a record. Type: " << datum.type() << std::endl;
+                }*/
+
+
+                    /* 
+                    spdlog::warn("Raw data size: {}", data.size());
+                    spdlog::warn("Raw data content: {}", std::string(reinterpret_cast<const char*>(data.data()), data.size()));
+                    
+                    spdlog::warn("Raw decodeddata size: {}", decodeddata.size());
+                    spdlog::warn("Raw decodeddata content: {}", std::string(reinterpret_cast<const char*>(decodeddata.data()), decodeddata.size()));
+
+
+                    auto in = avro::memoryInputStream(reinterpret_cast<const uint8_t*>(decodeddata.data()), decodeddata.size());
+                    if (!in) {
+                        logger->error("Memory input stream creation failed for data: {}", decodeddata);
+                        break;
+                    }
+                    else {
+                        logger->warning("Input stream created successfully for data.");
+                    }
+
+                    auto decoder = avro::binaryDecoder();
+                    decoder->init(*in);
+
+                    if (!avro_schema.root()) {
+                        logger->error("Avro schema is null or invalid!");
+                        break;
+                    }
+                    else {
+                        logger->warning("Avro schema is valid.");
+                        std::cout << "AVRO SCHEMA ROOT TYPE: " << avro_schema.root()->type() << std::endl;
+                    }
+
+                    try {
+                        avro::GenericDatum datum(avro_schema);
+                        avro::decode(*decoder, datum);
+                        logger->warning("Decoded datum successfully");
+                    }
+                    catch (const avro::Exception& e) {
+                        logger->error("Avro exception during decode: {}", e.what());
+                        throw;
+                    }
+                    catch (const std::exception& e) {
+                        logger->error("Standard exception during decode: {}", e.what());
+                        throw;
+                    }
+
+                    logger->warning("ZZZZZZZ FINITO DI GESTIRE I DATI");
                 }
                 else {
                     std::cerr << "Received null or empty data!" << std::endl;
-                }
+                } */
             }
         }
     }
@@ -626,9 +844,10 @@ void Supervisor::listen_for_hp_file() {
 
 ///////////////////////////////////
 void Supervisor::listen_for_commands() {
+    std::cout << "Waiting for commands..." << std::endl;
+
     while (continueall) {
         try {
-            std::cout << "Waiting for commands..." << std::endl;
             logger->info("Waiting for commands...", globalname);
 
             if (!socket_command) {

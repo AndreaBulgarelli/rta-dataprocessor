@@ -8,6 +8,7 @@
 #include "avro/DataFile.hh"
 #include "avro/Decoder.hh"
 #include "avro/Specific.hh"
+#include <iostream>
 
 // Constructor
 Worker1::Worker1() : WorkerBase() {
@@ -42,8 +43,6 @@ void Worker1::config(const nlohmann::json& configuration) {
     WorkerBase::config(configuration);
 }
 
-#include <iostream>
-#include <avro/GenericDatum.hh>
 
 void Worker1::printGenericDatum(const avro::GenericDatum& datum, int indent = 0) {
     // Funzione per aggiungere spazi per l'indentazione
@@ -158,19 +157,21 @@ void Worker1::printGenericDatum(const avro::GenericDatum& datum, int indent = 0)
 
 
 ////////////////////////////////////////////
-nlohmann::json Worker1::processData(const std::string data, int priority) {
-    std::cout << "CCCCCCCCCCC: " << std::endl;
+nlohmann::json Worker1::processData(const std::string data, int priority) { 
+    nlohmann::json result;
+    result["data"] = "stringa_vuota";
+    //result["dataType"] = "binary";
+
+    /* std::cout << "CCCCCCCCCCC: " << std::endl;
 
     std::cout << "AOAOAOOAOAOAOOA: " << std::endl;
 
-    std::cout << data << std::endl;
+    spdlog::warn("Received data: {}", data);
 
     std::cout << "AOAOAOOAOAOAOOA2: " << std::endl;
 
 
-    nlohmann::json result;
     std::string dataflow_type = get_supervisor()->dataflowtype;
-    result["data"] = "";
 
     if (dataflow_type == "binary") {
         std::vector<uint8_t> binary_data;
@@ -185,7 +186,7 @@ nlohmann::json Worker1::processData(const std::string data, int priority) {
             }
 
         // Passa i dati binari al decoder Avro
-        std::cout << "AAAAAAAA: " << binary_data.data() << std::endl;
+        std::cout << "\nUUUUUUUUUUUUUUUUUUUUU: " << binary_data.data() << std::endl;
 
         auto in = avro::memoryInputStream(binary_data.data(), binary_data.size());
         auto decoder = avro::binaryDecoder();
@@ -195,7 +196,12 @@ nlohmann::json Worker1::processData(const std::string data, int priority) {
         avro::decode(*decoder, datum);
 
         if (datum.type() == avro::AVRO_RECORD) {
-            printGenericDatum(datum);
+            spdlog::warn("STAMPOOOO DATUMMMMMM");
+
+            // printGenericDatum(datum);
+
+            spdlog::warn("FINITO DI STAMPARE DATUM");
+
         }
 
         result["data"] = data;
@@ -203,7 +209,7 @@ nlohmann::json Worker1::processData(const std::string data, int priority) {
 
         // Simulate processing
         std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(random_duration())));
-    }
+    } */
     /*
     else if (dataflow_type == "filename") {
         std::string filename = data.get<std::string>();

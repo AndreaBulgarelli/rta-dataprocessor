@@ -1,6 +1,4 @@
-import json
 
-AVRO_SCHEMA = '''
 			{
 				"type": "record",
 				"name": "AvroMonitoringPoint",
@@ -19,8 +17,4 @@ AVRO_SCHEMA = '''
 					{"name": "data", "type": {"type": "array", "items": ["double", "int", "long", "string", "boolean"]}}
 				]
 			}
-		'''
-
-
-with open(r"../rtadp-proto/avro_schema.json", "w") as f:
-    f.write(AVRO_SCHEMA)
+		

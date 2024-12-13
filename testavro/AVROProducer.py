@@ -61,8 +61,6 @@ class AvroDataGenerator:
         return avro_data
 
     def create_avro_message(self):
-        
-
         avro_schema = avro.schema.parse(AVRO_SCHEMA)
 
         # Fill in other fields based on your use case

@@ -17,6 +17,9 @@
 #include "ConfigurationManager.h"
 #include "WorkerManager.h"
 
+#include "avro/ValidSchema.hh"
+
+
 using json = nlohmann::json;
 
 
@@ -27,15 +30,18 @@ class Supervisor {
 
     // Helper function to open file
     std::pair<std::vector<json>, int> open_file(const std::string &filename);
-
+  
     // Static pointer to the current instance
     static Supervisor* instance;
 
     std::shared_ptr<std::mutex> sendresultslock;
 
-
     std::condition_variable cv;
     std::mutex cv_mtx;
+
+
+    avro::ValidSchema avro_schema; // Store avro valid schema
+
 
 public:
     std::vector<std::string> worker_names;
