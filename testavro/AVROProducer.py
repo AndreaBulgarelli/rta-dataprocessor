@@ -23,6 +23,7 @@ class AvroDataGenerator:
         self.load_configuration(config_file_path, processname)
         self.delay = float(delay)
         self.queue = queue
+
         self.type = self.config.get("dataflow_type")
         self.datasocket_type = self.config.get("datasocket_type")
         print(f"{self.type} {self.datasocket_type}")
@@ -95,6 +96,8 @@ class AvroDataGenerator:
                 encoder = avro.io.BinaryEncoder(bytes_io)
                 writer.write(avro_message, encoder)
                 avro_binary_data = bytes_io.getvalue()
+
+                # print(self.config.get("data_lp_socket"))
 
                 # Send the serialized Avro message via ZeroMQ
                 self.socket.send(avro_binary_data)

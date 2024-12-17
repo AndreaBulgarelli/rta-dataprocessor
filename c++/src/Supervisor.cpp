@@ -518,8 +518,8 @@ void Supervisor::send_result(WorkerManager *manager, int indexmanager) {
         }
     }
 }
-///////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////
 // Listen for low priority binary data
 void Supervisor::listen_for_lp_data() {
     std::cout << "\n Dentro listen_for_lp_data " << std::endl;
@@ -531,18 +531,24 @@ void Supervisor::listen_for_lp_data() {
             std::cout << "Ci sono0" << std::endl;
 
             zmq::message_t data;
-            socket_lp_data->recv(data);
-
+            zmq::recv_flags flags = zmq::recv_flags::none;
 
 
             try {
-                auto result = socket_lp_data->recv(data);
+
+
+                auto result = socket_lp_data->recv(data, flags);
                 int err_code = zmq_errno();
 
-                if (result) {
+                if (!result) {
+                    std::cout << "listen_for_lp_data waiting for a producer" << std::endl;
+
                     while (err_code == EAGAIN) {   // Continue if no commands were received
-                        std::cout << "Waiting" << std::endl;
+                        // std::cout << "Waiting" << std::endl;
+                        continue; // Keep looking for commands
                     }
+
+                    std::cout << "Fuori dal while" << std::endl;
 
                     continue; // Keep looking for commands
                 }
@@ -554,13 +560,13 @@ void Supervisor::listen_for_lp_data() {
                     break;
                 }
                 else {
-                    logger->error("ZMQ exception in listen_for_commands: {}", e.what());
+                    logger->error("ZMQ exception in listen_for_lp_data: {}", e.what());
                     throw;
                 }
             }
 
             std::cout << "Ci sono1" << std::endl;
-            std::cout << "DATA.DATA" << data.data() << std::endl;
+            std::cout << "DATA.DATA(): " << data.data() << std::endl;
             std::cout << "Received data size: " << data.size() << std::endl;
 
             if (data.size() < sizeof(int32_t)) {
@@ -573,7 +579,7 @@ void Supervisor::listen_for_lp_data() {
 
             if (size <= 0 || size > data.size() - sizeof(int32_t)) {
                 std::cerr << "Invalid size value: " << size << std::endl;
-                break;
+                // break;
             }
 
             memcpy(&size, data.data(), sizeof(int32_t));
@@ -603,8 +609,8 @@ void Supervisor::listen_for_lp_data() {
 
             for (auto &manager : manager_workers) {
                 auto decodeddata = data.to_string();
-                std::cout << "\n RAW RECEIVED DATA: " << data << std::endl;
-                std::cout << "\n DECODED RECEIVED DATA: " << decodeddata << std::endl;
+                // std::cout << "\n RAW RECEIVED DATA: " << data << std::endl;
+                // std::cout << "\n DECODED RECEIVED DATA: " << decodeddata << std::endl;
 
                 if (!decodeddata.empty()) {
                     manager->getLowPriorityQueue()->push(decodeddata);
@@ -716,6 +722,7 @@ void Supervisor::listen_for_lp_data() {
     std::cout << "End listen_for_lp_data" << std::endl;
     logger->info("End listen_for_lp_data", globalname);
 }
+///////////////////////////////////////////////////////////////////
 
 // Listen for high priority binary data
 void Supervisor::listen_for_hp_data() {
@@ -723,11 +730,6 @@ void Supervisor::listen_for_hp_data() {
         if (!stopdata) {
             zmq::message_t data;
             socket_hp_data->recv(data);
-
-            for (auto &manager : manager_workers) {
-                json decodeddata = json::parse(data.to_string());
-                manager->getHighPriorityQueue()->push(decodeddata);
-            }
         }
     }
 
