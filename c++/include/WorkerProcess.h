@@ -37,8 +37,8 @@ private:
     std::shared_ptr<WorkerBase> worker;
 
     //////////////////////
-    std::shared_ptr<ThreadSafeQueue<std::string>> low_priority_queue;
-    std::shared_ptr<ThreadSafeQueue<std::string>> high_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> low_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> high_priority_queue;
     /////////////////////
 
     std::string name;

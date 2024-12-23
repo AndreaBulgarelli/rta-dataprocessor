@@ -22,6 +22,7 @@
 #include "MonitoringThread.h"
 #include "Supervisor.h"
 #include "WorkerProcess.h"
+#include "Worker1.h"
 
 #include "ThreadSafeQueue.h"
 
@@ -57,10 +58,10 @@ private:
 
 
     ////////////////////////////////////////////
-    std::shared_ptr<ThreadSafeQueue<std::string>> low_priority_queue;
-    std::shared_ptr<ThreadSafeQueue<std::string>> high_priority_queue;
-    std::shared_ptr<ThreadSafeQueue<std::string>> result_lp_queue;
-    std::shared_ptr<ThreadSafeQueue<std::string>> result_hp_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> low_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> high_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> result_lp_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> result_hp_queue;
 
     // std::shared_ptr<std::queue<std::string>> low_priority_queue;
     // std::shared_ptr<std::queue<std::string>> high_priority_queue;
@@ -88,7 +89,7 @@ private:
     std::vector<std::atomic<int>> total_processed_data_count_shared;
  
     // Helper function to clean a single queue
-    void clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::string>>& queue, const std::string& queue_name);
+    void clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>>& queue, const std::string& queue_name);
  
     // Helper function to close a queue
     void close_queue(std::shared_ptr<std::queue<std::string>>& queue, const std::string& queue_name);
@@ -163,10 +164,10 @@ public:
 
 
     /////////////////////////////////////////
-    std::shared_ptr<ThreadSafeQueue<std::string>> getLowPriorityQueue() const;
-    std::shared_ptr<ThreadSafeQueue<std::string>> getHighPriorityQueue() const;
-    std::shared_ptr<ThreadSafeQueue<std::string>> getResultLpQueue() const;
-    std::shared_ptr<ThreadSafeQueue<std::string>> getResultHpQueue() const;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> getLowPriorityQueue() const;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> getHighPriorityQueue() const;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> getResultLpQueue() const;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> getResultHpQueue() const;
 
     // std::shared_ptr<std::queue<std::string>> getLowPriorityQueue() const;
     // std::shared_ptr<std::queue<std::string>> getHighPriorityQueue() const;

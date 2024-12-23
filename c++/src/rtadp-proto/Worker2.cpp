@@ -42,7 +42,14 @@ void Worker2::config(const nlohmann::json& configuration) {
     WorkerBase::config(configuration);
 }
 
-nlohmann::json Worker2::processData(const std::string data, int priority) {
+std::vector<uint8_t> Worker2::processData(const std::vector<uint8_t>& data, int priority) {
+    std::cout << "DENTRO Worker2::processData" << std::endl;
+
+    std::string str(data.begin(), data.end());
+
+    nlohmann::json result = nlohmann::json::parse(str);
+    std::cout << "Worker2::processData: TIMESTAMP" << result["timestamp"] << std::endl;
+
     return {};
 }
 

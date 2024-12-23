@@ -17,9 +17,7 @@
 #include "avro/DataFile.hh"
 #include "avro/Decoder.hh"
 #include "avro/Specific.hh"
-
 #include "ccsds/include/packet.h"
-
 
 
 Supervisor* Supervisor::instance = nullptr;
@@ -291,8 +289,6 @@ void Supervisor::load_configuration(const std::string &config_file, const std::s
 
 // Start service threads for data handling
 void Supervisor::start_service_threads() {
-    std::cout << "AAAAAAAAA" << std::endl;
-
     if (dataflowtype == "binary") {
         lp_data_thread = std::thread(&Supervisor::listen_for_lp_data, this);
         hp_data_thread = std::thread(&Supervisor::listen_for_hp_data, this);
@@ -349,6 +345,7 @@ void Supervisor::start_managers() {
     setup_result_channel(manager, indexmanager);
     manager->run();
     manager_workers.push_back(manager);
+    // TODO: Rimuovere print o meglio trasformare come log
     std::cout << "BASE SUP manager started. man lenght: " << manager_workers.size() << std::endl;
 }
 
@@ -358,6 +355,7 @@ void Supervisor::start_workers() {
 
     for (auto &manager : manager_workers) {
         manager->start_worker_threads(manager_num_workers);
+        // TODO: Rimuovere print o meglio trasformare come log
         std::cout << "SUP start_worker_threads" << std::endl;
         indexmanager++;
     }
@@ -408,6 +406,8 @@ void Supervisor::handle_signals(int signum) {
 void Supervisor::listen_for_result() {
     try {
         while (continueall) {
+            // std::cout << "DENTRO Supervisor::listen_for_result\n" << std::endl;
+
             int indexmanager = 0;
 
             for (auto& manager : manager_workers) {
@@ -424,6 +424,7 @@ void Supervisor::listen_for_result() {
                 }
 
                 try {
+                    // std::cout << "SEND RESULT\n" << std::endl;
                     send_result(manager, indexmanager);
                 }
                 catch (const std::exception& e) {
@@ -452,44 +453,54 @@ void Supervisor::listen_for_result() {
 
 // Send result data
 void Supervisor::send_result(WorkerManager *manager, int indexmanager) {
+    // std::cout << "DENTRO Supervisor::send_result\n" << std::endl;
+
   if (manager->getResultLpQueue()->empty() && manager->getResultHpQueue()->empty()) {
-        return;
+      return;
     }
 
     json data;
     int channel = -1;
 
     try {
-        // Prova a prelevare un elemento dalla HP queue
+        // Tries to get an element from the hp queue
         channel = 1;
-        data = manager->getResultHpQueue()->get();  // Preleva dalla HP queue
-    } catch (const std::exception &e) {
+        data = manager->getResultHpQueue()->get();  
+    } 
+    catch (const std::exception &e) {
         try {
-            // Se fallisce, passa alla LP queue
+            // If it fails, it does the same with the lp queue
             channel = 0;
-            data = manager->getResultLpQueue()->get();  // Preleva dalla LP queue
-        } catch (const std::exception &e) {
-            // Entrambe le code sono vuote
+            data = manager->getResultLpQueue()->get();  
+        } 
+        catch (const std::exception &e) {
+            std::cout << "ENTRAMBE LE CODE VUOTE2 Supervisor::send_result\n" << std::endl;
             return;
         }
     }
 
     if (channel == 0) {
         if (manager->get_result_lp_socket() == "none") {
+            std::cout << "SOCKET VUOTO Supervisor::send_result\n" << std::endl;
             return;
         }
         if (manager->get_result_dataflow_type() == "string" || manager->get_result_dataflow_type() == "filename") {
             try {
+                std::cout << "MANDO STRINGHE Supervisor::send_result\n" << std::endl;
+
                 std::string data_str = data.get<std::string>();
                 socket_lp_result[indexmanager]->send(zmq::buffer(data_str));
-            } catch (const std::exception &e) {
+            } 
+            catch (const std::exception &e) {
                 std::cerr << "ERROR: data not in string format to be sent to: " << e.what() << std::endl;
                 logger->error("ERROR: data not in string format to be sent to: " + std::string(e.what()), globalname);
             }
-        } else if (manager->get_result_dataflow_type() == "binary") {
+        } 
+        else if (manager->get_result_dataflow_type() == "binary") {
             try {
                 socket_lp_result[indexmanager]->send(zmq::buffer(data.dump()));
-            } catch (const std::exception &e) {
+            } 
+            catch (const std::exception &e) {
                 std::cerr << "ERROR: data not in binary format to be sent to socket_result: " << e.what() << std::endl;
                 logger->error("ERROR: data not in binary format to be sent to socket_result: " + std::string(e.what()), globalname);
             }
@@ -498,25 +509,31 @@ void Supervisor::send_result(WorkerManager *manager, int indexmanager) {
 
     if (channel == 1) {
         if (manager->get_result_hp_socket() == "none") {
+            std::cout << "CHANNEL 1 Supervisor::send_result\n" << std::endl;
             return;
         }
         if (manager->get_result_dataflow_type() == "string" || manager->get_result_dataflow_type() == "filename") {
             try {
                 std::string data_str = data.get<std::string>();
                 socket_hp_result[indexmanager]->send(zmq::buffer(data_str));
-            } catch (const std::exception &e) {
+            } 
+            catch (const std::exception &e) {
                 std::cerr << "ERROR: data not in string format to be sent to: " << e.what() << std::endl;
                 logger->error("ERROR: data not in string format to be sent to: " + std::string(e.what()), globalname);
             }
-        } else if (manager->get_result_dataflow_type() == "binary") {
+        } 
+        else if (manager->get_result_dataflow_type() == "binary") {
             try {
                 socket_hp_result[indexmanager]->send(zmq::buffer(data.dump()));
-            } catch (const std::exception &e) {
+            } 
+            catch (const std::exception &e) {
                 std::cerr << "ERROR: data not in binary format to be sent to socket_result: " << e.what() << std::endl;
                 logger->error("ERROR: data not in binary format to be sent to socket_result: " + std::string(e.what()), globalname);
             }
         }
     }
+
+    std::cout << "FUORI Supervisor::send_result\n" << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -565,9 +582,15 @@ void Supervisor::listen_for_lp_data() {
                 }
             }
 
+
+            ///////////////////////////////////////////
+            /*
             std::cout << "Ci sono1" << std::endl;
             std::cout << "DATA.DATA(): " << data.data() << std::endl;
             std::cout << "Received data size: " << data.size() << std::endl;
+            */
+            
+            std::cout << "\n RICEZIONE DI Supervisor::listen_for_lp_data():" << std::endl;
 
             if (data.size() < sizeof(int32_t)) {
                 std::cerr << "Error: Received data size is smaller than expected." << std::endl;
@@ -582,39 +605,43 @@ void Supervisor::listen_for_lp_data() {
                 // break;
             }
 
-            memcpy(&size, data.data(), sizeof(int32_t));
+            // memcpy(&size, data.data(), sizeof(int32_t));
 
-            std::cout << "Ci sono2" << std::endl;
-
+            // std::cout << "Ci sono2" << std::endl;
             // std::cout << "msg size is: " << message.size() << std::endl;
-            vec.resize(size);
-            memcpy(vec.data(), static_cast<const char*>(data.data()) + sizeof(int32_t), size * sizeof(uint8_t));
 
-            std::cout << "Ci sono3" << std::endl;
+            vec.resize(data.size());
+            // memcpy(vec.data(), static_cast<const char*>(data.data()), data.size());
 
+            // std::cout << "Ci sono3" << std::endl
 
-            HeaderWF receivedPacket;
-            std::memcpy(&receivedPacket, vec.data(), sizeof(HeaderWF));
+            HeaderWF* receivedPacket = reinterpret_cast<HeaderWF*>(data.data());
+            // std::memcpy(&receivedPacket, vec.data(), sizeof(HeaderWF));
 
-            std::cout << "Ci sono4" << std::endl;
+            // std::cout << "Ci sono4" << std::endl;
 
             // Verify the content of the debufferized data
-            std::cout << "Debufferized Header APID: " << receivedPacket.h.apid << std::endl;
-            std::cout << "Debufferized Data size: " << receivedPacket.d.size << std::endl;
+            std::cout << "Debufferized Header APID: " << receivedPacket->h.apid << std::endl;
+            std::cout << "Debufferized Data size: " << receivedPacket->d.size << std::endl;
+            std::cout << "Size of timespec: " << sizeof(receivedPacket->h.ts) << ", Alignment:" << alignof(receivedPacket->h.ts) << "\n" << std::endl;
 
-            std::cout << "size of timespec: " << sizeof(receivedPacket.h.ts) << ". alignment:" << alignof(receivedPacket.h.ts) << std::endl;
+            HeaderWF::print(*receivedPacket, 10);
+            ///////////////////////////////////////////
 
-            HeaderWF::print(receivedPacket, 10);
 
+            std::vector<uint8_t> binary_data(static_cast<const uint8_t*>(data.data()), static_cast<const uint8_t*>(data.data()) + data.size());
 
             for (auto &manager : manager_workers) {
-                auto decodeddata = data.to_string();
+                // auto decodeddata = data.to_string();
                 // std::cout << "\n RAW RECEIVED DATA: " << data << std::endl;
                 // std::cout << "\n DECODED RECEIVED DATA: " << decodeddata << std::endl;
 
-                if (!decodeddata.empty()) {
-                    manager->getLowPriorityQueue()->push(decodeddata);
+                if (!binary_data.empty()) {
+                    std::cout << "Supervisor::listen_for_lp_data pusho sulla coda" << std::endl;
 
+                    manager->getLowPriorityQueue()->push(binary_data);
+
+                    std::cout << "Supervisor::listen_for_lp_data pushato sulla coda" << std::endl;
                 }
 
                 /*
@@ -744,9 +771,10 @@ void Supervisor::listen_for_lp_string() {
             zmq::message_t data;
             socket_lp_data->recv(data);
             std::string data_str(static_cast<char*>(data.data()), data.size());
+            std::vector<unsigned char> data_vec(data_str.begin(), data_str.end());
 
             for (auto &manager : manager_workers) {
-                manager->getLowPriorityQueue()->push(data_str);
+                manager->getLowPriorityQueue()->push(data_vec);
             }
         }
     }
@@ -762,9 +790,10 @@ void Supervisor::listen_for_hp_string() {
             zmq::message_t data;
             socket_hp_data->recv(data);
             std::string data_str(static_cast<char*>(data.data()), data.size());
+            std::vector<unsigned char> data_vec(data_str.begin(), data_str.end());
 
             for (auto &manager : manager_workers) {
-                manager->getHighPriorityQueue()->push(data_str);
+                manager->getHighPriorityQueue()->push(data_vec);
             }
         }
     }
@@ -848,70 +877,62 @@ void Supervisor::listen_for_hp_file() {
 void Supervisor::listen_for_commands() {
     std::cout << "Waiting for commands..." << std::endl;
 
+    if (!socket_command) {
+        logger->error("Socket is null or invalid in listen_for_commands");
+        continueall = false;
+    }
+
     while (continueall) {
+        logger->info("Waiting for commands...", globalname);
+
+        zmq::recv_flags flags = zmq::recv_flags::none;
+        zmq::message_t command_msg;
+        int err_code = zmq_errno();
+
         try {
-            logger->info("Waiting for commands...", globalname);
+            auto result = socket_command->recv(command_msg, flags);
 
-            if (!socket_command) {
-                logger->error("Socket is null or invalid in listen_for_commands");
-                break; 
-            }
-
-            zmq::recv_flags flags = zmq::recv_flags::none;
-            zmq::message_t command_msg;
-
-            try {
-                auto result = socket_command->recv(command_msg, flags);
-                int err_code = zmq_errno();
-
-                if (!result) {
-                    if (err_code == EAGAIN) {   // Continue if no commands were received
-                        continue;
-                    }
-                    else if (err_code == EINTR) {
-                        break;
-                    }
-                    else {
-                        logger->error("ZMQ recv error: {}", zmq_strerror(err_code));
-                        break; 
-                    }
-
-                    continue; // Keep looking for commands
+            if (!result) {
+                if (err_code == EAGAIN) {   // Continue if no commands were received
+                    continue;
+                }
+                else if (err_code == EINTR) {   // Si può rimuovere
+                    break;
                 }
                 else {
-                    if (err_code == EINTR) {
-                        break;
-                    }
+                    logger->error("ZMQ recv error: {}", zmq_strerror(err_code));
+                    break;
                 }
-            }
-            catch (const zmq::error_t& e) {
-                int err_code = zmq_errno();
 
-                if (err_code == EINTR) {     // SIGINT
-                    break; 
+                continue; // Keep looking for commands
+            }
+            else {
+                if (err_code == EINTR) {    // Si può rimuovere
+                    break;
                 }
-                else {
-                    logger->error("ZMQ exception in listen_for_commands: {}", e.what());
-                    throw; 
+
+                std::string command_str(static_cast<char*>(command_msg.data()), command_msg.size());
+
+                try {
+                    json command = json::parse(command_str);
+                    process_command(command);
                 }
-            }
-
-            std::string command_str(static_cast<char*>(command_msg.data()), command_msg.size());
-
-            try {
-                json command = json::parse(command_str);
-                process_command(command);
-            }
-            catch (const json::parse_error& e) {
-                logger->error("JSON parse error: {}", e.what());
+                catch (const json::parse_error& e) {
+                    logger->error("JSON parse error: {}", e.what());
+                }
             }
         }
-        catch (const std::exception& e) {
-            logger->error("Exception in listen_for_commands: {}", e.what());
-            throw;
+        catch (const zmq::error_t& e) {
+            if (err_code == EINTR || e.num() == ETERM || e.num() == EINTR) {        // SIGINT
+                continueall = false;
+                break;
+            }
+            else {
+                logger->error("ZMQ exception in listen_for_commands: {}", e.what());
+                throw;
+            }
         }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Avoids extensive CPU use
+        // std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Avoids extensive CPU use
     }
 
     std::cout << "End listen_for_commands" << std::endl;

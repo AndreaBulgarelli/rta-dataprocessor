@@ -11,9 +11,8 @@ void WorkerManager1::start_worker_threads(int num_threads) {
     
     // Creazione dei thread dei worker
     for (int i = 0; i < num_threads; ++i) {
-
         // auto processor = std::make_shared<Worker1>();
-        WorkerBase* processor = new Worker1(); 
+        WorkerBase* processor = new Worker1();
 
         const auto name_workers = getSupervisor()->name_workers;
 
@@ -30,6 +29,7 @@ void WorkerManager1::start_worker_threads(int num_threads) {
             continue;  // Salta la creazione di questo thread se `worker_name` è vuoto
         }
         else {
+            // TODO: Rimuovere print o meglio trasformare come log
             std::cout << "A WorkerThread has been created for manager_id: " << manager_id << std::endl;
         }
 
@@ -55,7 +55,6 @@ void WorkerManager1::start_worker_threads(int num_threads) {
     }
 }
 */
-
 
 // Override to start worker processes
 void WorkerManager1::start_worker_processes(int num_processes) {

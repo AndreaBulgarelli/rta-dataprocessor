@@ -26,8 +26,6 @@ void WorkerBase::init(WorkerManager* manager, Supervisor* supervisor, const std:
     // this->logger = spdlog::basic_logger_mt("worker_logger", "logs/worker.log");
     this->workersname = workersname;
     this->fullname = fullname;
-    
-    // spdlog::error("WorkerBase::init: INIZIALIZZATO");
 }
 
 void WorkerBase::config(const nlohmann::json& configuration) {
@@ -40,4 +38,8 @@ void WorkerBase::config(const nlohmann::json& configuration) {
     if (pidtarget == workersname || pidtarget == fullname) {
         logger->info("Received config: {}", configuration.dump());
     }
+}
+
+std::vector<uint8_t> WorkerBase::processData(const std::vector<uint8_t>& data, int priority) {
+    return {};
 }

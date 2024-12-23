@@ -61,14 +61,12 @@ void WorkerProcess::run() {
                 manager->setWorkerStatus(worker_id, 2); // assume queue empty
 
                 try {
-                    std::string high_priority_data = high_priority_queue->front();
-                    high_priority_queue->pop();
+                    auto high_priority_data = high_priority_queue->get();
                     process_data(high_priority_data, 1);
                 } 
                 catch (const std::out_of_range&) {
                     try {
-                        std::string low_priority_data = low_priority_queue->front();
-                        low_priority_queue->pop();
+                        auto low_priority_data = low_priority_queue->get();
                         process_data(low_priority_data, 0);
                     } 
                     catch (const std::out_of_range&) {

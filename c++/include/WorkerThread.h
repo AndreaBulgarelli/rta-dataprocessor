@@ -36,8 +36,8 @@ class WorkerThread {
     WorkerLogger* logger;
 
     //////////////////////
-    std::shared_ptr<ThreadSafeQueue<std::string>> low_priority_queue;
-    std::shared_ptr<ThreadSafeQueue<std::string>> high_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> low_priority_queue;
+    std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> high_priority_queue;
     /////////////////////
 
     MonitoringPoint* monitoringpoint;
@@ -61,7 +61,7 @@ class WorkerThread {
 
     void start_timer(int interval);
     void workerop(int interval);
-    void process_data(const std::string& data, int priority);
+    void process_data(const std::vector<uint8_t>& data, int priority);
 
 
 public:

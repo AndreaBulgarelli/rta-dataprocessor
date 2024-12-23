@@ -20,6 +20,7 @@ WorkerThread::WorkerThread(int worker_id, WorkerManager* manager, const std::str
     : worker_id(worker_id), manager(manager), name(name), worker(worker),
      processdata(0), status(0), tokenresult(worker_id), tokenreading(worker_id), _stop_event(false) {
 
+    // TODO: Rimuovere print o meglio trasformare come log
     std::cout << "Creating a WorkerThread with name: " << name << std::endl;
 
     supervisor = manager->getSupervisor();
@@ -61,25 +62,21 @@ void WorkerThread::run() {
     while (!_stop_event) {
         // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         if (processdata == 1 && tokenreading == 0) {
-
                 // Check and process high-priority queue first
                 if (!high_priority_queue->empty()) {
-                    auto high_priority_data = high_priority_queue->front();
-                    high_priority_queue->pop();
+                    auto high_priority_data = high_priority_queue->get();
                     manager->change_token_reading();
                     process_data(high_priority_data, 1);
                 } 
                 else {
                     // Process low-priority queue if high-priority queue is empty
                     if (!low_priority_queue->empty()) {
-                        std::cout << "DENTRO RUN: " << std::endl;
+                        std::cout << "DENTRO WorkerThread::run" << std::endl;
 
-                        auto low_priority_data = low_priority_queue->front();
-                        low_priority_queue->pop();
+                        auto low_priority_data = low_priority_queue->get();
                         manager->change_token_reading();
 
-                        std::cout << "ENTRO IN PROCESSDATA: " << std::endl;
-
+                        std::cout << "WorkerThread::run: ENTRO IN WorkerThread::process_data" << std::endl;
 
                         if (!low_priority_data.empty()) {
                             process_data(low_priority_data, 0);
@@ -210,7 +207,7 @@ void WorkerThread::workerop(int interval) {
 }
 
 ////////////////////////////////////////////
-void WorkerThread::process_data(const std::string& data, int priority) {
+void WorkerThread::process_data(const std::vector<uint8_t>& data, int priority) {
     status = 8; // processing new data
     processed_data_count++;
 
@@ -218,22 +215,34 @@ void WorkerThread::process_data(const std::string& data, int priority) {
         return;
     }
 
+    std::cout << "DENTRO WorkerThread::process_data  " << std::endl;
+
     auto dataresult = worker->processData(data, priority);
-    std::cout << "DDDDDDDDDD: " << dataresult << std::endl;
 
-    auto dataresult_string = dataresult["data"].get<std::string>();     
+    std::cout << "TORNATO IN WorkerThread::process_data  " << std::endl;
 
-    std::cout << "eeeeeeeeee: " << dataresult_string << std::endl;
+    // std::cout << "DDDDDDDDDD: " << dataresult << std::endl;
 
+    // auto dataresult_string = dataresult["data"].get<std::string>();     
+    // std::cout << "eeeeeeeeee: " << dataresult_string << std::endl;
 
-    if (!dataresult_string.empty() && tokenresult == 0) {
+    std::cout << "WorkerThread::process_data: DIMENSIONE: " << dataresult.size() << std::endl;
+
+    if (!dataresult.empty() && tokenresult == 0) {
+        std::cout << "WorkerThread::process_data: pusho sulla coda" << std::endl;
+
         if (priority == 0) {
-            manager->getResultLpQueue()->push(dataresult_string);
+            manager->getResultLpQueue()->push(dataresult);
+
+
         } 
         else {
-            manager->getResultHpQueue()->push(dataresult_string);
+            manager->getResultHpQueue()->push(dataresult);
         }
         manager->change_token_results();
+    }
+    else {
+        std::cout << "WorkerThread::process_data: dataresult EMPTY" << std::endl;
     }
 }
 ////////////////////////////////////////////

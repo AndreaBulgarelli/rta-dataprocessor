@@ -33,11 +33,11 @@ public:
     // Override the config method
     void config(const nlohmann::json& configuration);
 
-    void printGenericDatum(const avro::GenericDatum& datum, int indent);
+    // void printGenericDatum(const avro::GenericDatum& datum, int indent);
 
     // Override the process_data method
-    //std::string process_data(const std::string& data);
-    nlohmann::json processData(const std::string data, int priority);
+    // std::string process_data(const std::string& data);
+    std::vector<uint8_t> processData(const std::vector<uint8_t>& data, int priority);
 };
 
 #endif // WORKER1_H

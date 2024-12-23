@@ -8,6 +8,7 @@
 #include "avro/DataFile.hh"
 #include "avro/Decoder.hh"
 #include "avro/Specific.hh"
+#include "ccsds/include/packet.h"
 #include <iostream>
 
 // Constructor
@@ -43,7 +44,18 @@ void Worker1::config(const nlohmann::json& configuration) {
     WorkerBase::config(configuration);
 }
 
+std::string get_current_time_as_string() {
+    auto now = std::chrono::system_clock::now();  // Tempo corrente
+    auto now_time_t = std::chrono::system_clock::to_time_t(now); // Convertito a time_t
+    auto local_time = *std::localtime(&now_time_t); // Ottieni il tempo locale
 
+    // Usa std::ostringstream per convertire la data e ora in una stringa
+    std::ostringstream oss;
+    oss << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S"); // Formato leggibile
+    return oss.str();
+}
+
+/*
 void Worker1::printGenericDatum(const avro::GenericDatum& datum, int indent = 0) {
     // Funzione per aggiungere spazi per l'indentazione
     auto indentSpaces = [](int level) -> std::string {
@@ -154,79 +166,113 @@ void Worker1::printGenericDatum(const avro::GenericDatum& datum, int indent = 0)
         break;
     }
 }
-
+*/
 
 ////////////////////////////////////////////
-nlohmann::json Worker1::processData(const std::string data, int priority) { 
-    nlohmann::json result;
-    result["data"] = "stringa_vuota";
-    //result["dataType"] = "binary";
+std::vector<uint8_t> Worker1::processData(const std::vector<uint8_t>& data, int priority) {
+    std::vector<uint8_t> binary_result;
 
-    /* std::cout << "CCCCCCCCCCC: " << std::endl;
+    
+    // result["data"] = "stringa_vuota";
+    // result["dataType"] = "binary";
 
-    std::cout << "AOAOAOOAOAOAOOA: " << std::endl;
-
-    spdlog::warn("Received data: {}", data);
-
-    std::cout << "AOAOAOOAOAOAOOA2: " << std::endl;
-
+    std::cout << "Dentro Worker1::processData " << std::endl;
+    std::cout << "Received data size: " << data.size() << std::endl;
 
     std::string dataflow_type = get_supervisor()->dataflowtype;
 
     if (dataflow_type == "binary") {
-        std::vector<uint8_t> binary_data;
 
-            try {
-                // Decodifica base64 se applicabile, altrimenti copia come binario
-                binary_data.assign(data.begin(), data.end());
-            }
-            catch (const std::exception& e) {
-                std::cerr << "Errore nel decodificare i dati: " << e.what() << std::endl;
-                return result;
-            }
+        std::cout << "Dentro Worker1::processData DATAFLOWTYPE BINARY " << std::endl;
+        std::cout << "\n RICEZIONE DI Worker1::processData():" << std::endl;
 
-        // Passa i dati binari al decoder Avro
-        std::cout << "\nUUUUUUUUUUUUUUUUUUUUU: " << binary_data.data() << std::endl;
 
-        auto in = avro::memoryInputStream(binary_data.data(), binary_data.size());
-        auto decoder = avro::binaryDecoder();
-        decoder->init(*in);
-
-        avro::GenericDatum datum(avro_schema);
-        avro::decode(*decoder, datum);
-
-        if (datum.type() == avro::AVRO_RECORD) {
-            spdlog::warn("STAMPOOOO DATUMMMMMM");
-
-            // printGenericDatum(datum);
-
-            spdlog::warn("FINITO DI STAMPARE DATUM");
-
+        // Verifica dimensione minima
+        if (data.size() < sizeof(int32_t)) {
+            std::cerr << "Error: Received data size is smaller than expected." << std::endl;
+            return binary_result; // Restituisci un vettore vuoto
         }
 
-        result["data"] = data;
+        // Estrai la dimensione del payload
+        int32_t size;
+        // std::memcpy(&size, data.data(), sizeof(int32_t)); // Copia i primi 4 byte in `size`
 
+        // Verifica validità della dimensione
+        if (size <= 0 || size > static_cast<int32_t>(data.size() - sizeof(int32_t))) {
+            std::cerr << "Invalid size value: " << size << std::endl;
+            return binary_result;
+        }
 
+        // Copia il payload in un vettore separato
+        std::vector<uint8_t> vec(size);
+        // std::memcpy(vec.data(), data.data() + sizeof(int32_t), size);
+
+        const HeaderWF* receivedPacket = reinterpret_cast<const HeaderWF*>(data.data());
+        // std::memcpy(&receivedPacket, vec.data(), sizeof(HeaderWF));
+
+        // std::cout << "Ci sono4" << std::endl;
+
+        // Verify the content of the debufferized data
+        std::cout << "Debufferized Header APID: " << receivedPacket->h.apid << std::endl;
+        std::cout << "Debufferized Data size: " << receivedPacket->d.size << std::endl;
+        std::cout << "Size of timespec: " << sizeof(receivedPacket->h.ts) << ", Alignment:" << alignof(receivedPacket->h.ts) << "\n" << std::endl;
+
+        HeaderWF::print(*receivedPacket, 10);
+
+        // Test        
+        /*  }
+        else {
+            std::cerr << "Error: Not enough data to decode HeaderWF." << std::endl;
+        } */
+
+        //result["data"] = data;
+        
         // Simulate processing
-        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(random_duration())));
-    } */
-    /*
+        //std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(random_duration())));
+
+        binary_result.insert(binary_result.end(), data.begin(), data.end());
+    } 
+
+    
     else if (dataflow_type == "filename") {
-        std::string filename = data.get<std::string>();
+        nlohmann::json result;
+
+        const std::string filename(data.begin(), data.end());
         // Simulate processing
         std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(random_duration())));
-        result["filename"] = filename;
         std::cout << "Processed file: " << filename << std::endl;
+
+        result["filename"] = filename;
+
+        std::string current_time = get_current_time_as_string();
+        result["timestamp"] = current_time;
+
+        std::string json_str = result.dump();
+        binary_result = std::vector<uint8_t>(json_str.begin(), json_str.end());
+
+
     }
     else if (dataflow_type == "string") {
-        std::string str_data = data.get<std::string>();
-        result["data"] = str_data;
-        std::cout << "\nProcessed string data: " << str_data << std::endl;
-    }
-    */
+        nlohmann::json result;
 
-    result["priority"] = priority;
-    return result;
+        const std::string str_data(data.begin(), data.end());
+        std::cout << "\nProcessed string data: " << str_data << std::endl;
+
+        result["data"] = str_data;
+
+        std::string current_time = get_current_time_as_string();
+        result["timestamp"] = current_time;
+
+        std::string json_str = result.dump();
+        binary_result = std::vector<uint8_t>(json_str.begin(), json_str.end());
+
+        std::cout << "binary_result: " << binary_result.size() << std::endl;
+    }
+    
+
+    std::cout << "Esco da Worker1::processData " << std::endl;
+
+    return binary_result;
 }
 ////////////////////////////////////////////
 

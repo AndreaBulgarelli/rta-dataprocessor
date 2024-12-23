@@ -61,13 +61,32 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 include_directories(${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIR} ${Spdlog_INCLUDE_DIR} ${INC_DIR} "/include" ${JsonDom_INCLUDE_DIR} ${GS_COMM} ${GS_SER})
 link_directories("/usr/local/lib")  
 
-file(GLOB RTADP_PROTO_FILES "${CMAKE_SOURCE_DIR}/src/rtadp-proto/*.cpp")
+set(RTADPPROTODIR "${CMAKE_SOURCE_DIR}/src/rtadp-proto/")
+
+# file(GLOB RTADP_PROTO_FILES "${CMAKE_SOURCE_DIR}/src/rtadp-proto/*.cpp")
 file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
+
+list(APPEND RTADPPROTO1FILES 
+    ${RTADPPROTODIR}/ProcessDataConsumer1.cpp
+    ${RTADPPROTODIR}/Supervisor1.cpp
+    ${RTADPPROTODIR}/Worker1.cpp
+    ${RTADPPROTODIR}/WorkerManager1.cpp
+)
+
+list(APPEND RTADPPROTO2FILES 
+    ${RTADPPROTODIR}/ProcessDataConsumer2.cpp
+    ${RTADPPROTODIR}/Supervisor2.cpp
+    ${RTADPPROTODIR}/Worker2.cpp
+    ${RTADPPROTODIR}/WorkerManager2.cpp
+)
 
 set(SOURCES ${RTADP_PROTO_FILES} ${SRC_FILES})
 
-add_executable(ProcessDataConsumer1 ${SOURCES})
+add_executable(ProcessDataConsumer1 ${RTADPPROTO1FILES} ${SRC_FILES})
 target_compile_options(ProcessDataConsumer1 PRIVATE -g)
+
+add_executable(ProcessDataConsumer2 ${RTADPPROTO2FILES} ${SRC_FILES})
+target_compile_options(ProcessDataConsumer2 PRIVATE -g)
 
  add_subdirectory(${GS_COMM})
 # add_subdirectory(${GS_COMM}/src)
@@ -83,12 +102,7 @@ if(ENABLE_LOGGING)
 endif()
 ########################
 
-
-# Aggiungi la definizione globale di SPDLOG_ACTIVE_LEVEL
-target_compile_definitions(ProcessDataConsumer1 PRIVATE SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO)
-
-# Collega la libreria jsondom manualmente
-target_link_libraries(ProcessDataConsumer1
+list(APPEND ProcessDataConsumerLibs 
     zmq 
     ${LIBS}
     ${Spdlog_LIBRARY}
@@ -96,4 +110,20 @@ target_link_libraries(ProcessDataConsumer1
     pthread
     ${JsonDom_LIBRARY}  # Aggiungi la libreria jsondom
     GSccsds
+)
+
+# Aggiungi la definizione globale di SPDLOG_ACTIVE_LEVEL
+target_compile_definitions(ProcessDataConsumer1 PRIVATE SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO)
+
+# Collega la libreria jsondom manualmente
+target_link_libraries(ProcessDataConsumer1
+    ${ProcessDataConsumerLibs}
+)
+
+# Aggiungi la definizione globale di SPDLOG_ACTIVE_LEVEL
+ target_compile_definitions(ProcessDataConsumer2 PRIVATE SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO)
+
+# Collega la libreria jsondom manualmente
+target_link_libraries(ProcessDataConsumer2
+    ${ProcessDataConsumerLibs}
 )

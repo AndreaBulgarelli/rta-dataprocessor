@@ -32,10 +32,10 @@ WorkerManager::WorkerManager(int manager_id, Supervisor* supervisor, const std::
     socket_monitoring = supervisor->socket_monitoring;
        
     /////////////////////////////////////////////
-    low_priority_queue = std::make_shared<ThreadSafeQueue<std::string>>();
-    high_priority_queue = std::make_shared<ThreadSafeQueue<std::string>>();
-    result_lp_queue = std::make_shared<ThreadSafeQueue<std::string>>();
-    result_hp_queue = std::make_shared<ThreadSafeQueue<std::string>>();
+    low_priority_queue = std::make_shared<ThreadSafeQueue<std::vector<uint8_t>>>();
+    high_priority_queue = std::make_shared<ThreadSafeQueue<std::vector<uint8_t>>>();
+    result_lp_queue = std::make_shared<ThreadSafeQueue<std::vector<uint8_t>>>();
+    result_hp_queue = std::make_shared<ThreadSafeQueue<std::vector<uint8_t>>>();
     
     // Initialize monitoring
     monitoringpoint = nullptr;
@@ -123,19 +123,19 @@ std::vector<std::shared_ptr<WorkerThread>> WorkerManager::getWorkerThreads() {
 
 
 /////////////////////////////////////////////
-std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getLowPriorityQueue() const {
+std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> WorkerManager::getLowPriorityQueue() const {
     return low_priority_queue;
 }
 
-std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getHighPriorityQueue() const {
+std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> WorkerManager::getHighPriorityQueue() const {
     return high_priority_queue;
 }
 
-std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getResultLpQueue() const {
+std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> WorkerManager::getResultLpQueue() const {
     return result_lp_queue;
 }
 
-std::shared_ptr<ThreadSafeQueue<std::string>> WorkerManager::getResultHpQueue() const {
+std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>> WorkerManager::getResultHpQueue() const {
     return result_hp_queue;
 }
 /////////////////////////////////////////////
@@ -245,23 +245,6 @@ void WorkerManager::start_service_threads() {
 
 // Function to start worker threads 
 void WorkerManager::start_worker_threads(int num_threads) {
-   /* logger->info(fmt::format("Number of threads for WorkerManager: {}", num_threads));
-
-    if (num_threads > max_workers) {
-        // spdlog::warn("WARNING! It is not possible to create more than {} threads", max_workers);
-        logger->warning(fmt::format("WARNING! It is not possible to create more than {} threads", max_workers), globalname);
-    }
-
-    num_workers = num_threads;
-    logger->info(fmt::format("Number of workers for WorkerManager: {}", num_workers));
-
-    for (int i = 0; i < num_workers; ++i) {
-        WorkerBase* worker_base_ptr = new WorkerBase();
-        auto worker = std::make_shared<WorkerThread>(i, this, std::to_string(i), worker_base_ptr);
-        // worker->run();
-        worker_threads.push_back(worker);
-    }
-    */
 }
 
 // Function to start worker processes
@@ -378,7 +361,7 @@ void WorkerManager::configworkers(const json& configuration) {
     }
 }
 
-void WorkerManager::clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::string>>& queue, const std::string& queue_name) {
+void WorkerManager::clean_single_queue(std::shared_ptr<ThreadSafeQueue<std::vector<uint8_t>>>& queue, const std::string& queue_name) {
     if (!queue->empty()) {
         logger->info(fmt::format("   - {} size {}", queue_name, queue->size()), globalname);
 

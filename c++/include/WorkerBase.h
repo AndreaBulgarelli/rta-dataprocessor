@@ -34,7 +34,7 @@ public:
 
     // virtual std::string 
     // const std::string& data);
-    virtual nlohmann::json processData(const std::string data, int priority) = 0;
+    virtual std::vector<uint8_t> processData(const std::vector<uint8_t>& data, int priority) = 0;
 
     Supervisor* get_supervisor() const{{
         return supervisor;

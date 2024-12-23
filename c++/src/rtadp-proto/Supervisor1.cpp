@@ -15,9 +15,10 @@ Supervisor1::~Supervisor1() {
 void Supervisor1::start_managers() {
     int indexmanager = 0;
     WorkerManager* manager1 = new WorkerManager1(indexmanager, this, workername);
-    setup_result_channel(manager1, indexmanager);
+    // setup_result_channel(manager1, indexmanager);
     manager1->run();
     manager_workers.push_back(manager1);
+    // TODO: Rimuovere print o meglio trasformare come log
     std::cout << "DER SUP manager started. manager_workers lenght: " << manager_workers.size() << std::endl;
 }
 
